@@ -1,0 +1,57 @@
+function array = CompPredict(Datas, parameters, methods, results)
+
+
+
+switch parameters.multilevel.svmonly
+    case 1
+        ModelStruct = 'svm';
+    case 0
+        ModelStruct = 'multilevel';
+end
+
+
+y_Test_A = methods.all.SVMpredict(parameters.(ModelStruct).SVMModel, Datas.X_Test_A);
+y_Test_B = methods.all.SVMpredict(parameters.(ModelStruct).SVMModel, Datas.X_Test_B);
+
+
+% [class_Test_A,y_Test_A] = methods.all.SVMpredict(parameters.multilevel.SVMModel, Datas.X_Test_A);
+% [class_Test_B,y_Test_B] = methods.all.SVMpredict(parameters.multilevel.SVMModel, Datas.X_Test_B);
+
+% class_Test_A = class_Test_A(:, y_Test_A + 1);
+% class_Test_B = class_Test_B(:, y_Test_B + 1);
+
+y_Test_A = y_Test_A(:, class_Test_A + 1);
+y_Test_B = y_Test_B(:, class_Test_B + 1);
+
+actual = [ones(length(y_Test_A), 1); zeros(length(y_Test_B), 1)];
+predicted = [y_Test_A(:) ; y_Test_B(:)];
+
+% predicted = [ones(length(y_Test_A), 1); zeros(length(y_Test_B), 1)];
+% actual = [y_Test_A(:) ; y_Test_B(:)];
+
+numpad = 2*parameters.data.Kfold - length(predicted);
+
+if numpad > 0
+    padnan = @(x) padarray(x(:), [numpad, 0], nan, 'post');
+    predicted = padnan(predicted);
+    actual = padnan(actual);
+end
+
+array = [predicted(:) , actual(:)] ;
+array = reshape(array, [1,1,1, size(array)]);
+
+
+    
+
+
+
+% [Xroc,Yroc] = perfcurve(labels, scores, 1);
+% 
+% %Npoints = size(results.svm.X,1);
+% 
+% Xroc = interp1( linspace(0,1,length(Xroc)),...
+%                 Xroc,...
+%                 linspace(0,1,results.Npoints), 'linear');
+% Yroc = interp1( linspace(0,1,length(Yroc)),...
+%                 Yroc,...
+%                 linspace(0,1,results.Npoints), 'linear');

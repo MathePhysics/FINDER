@@ -1,0 +1,157 @@
+function parameters = MethodOfEllipsoids_23(Datas, parameters, methods)
+
+close all
+if ~parameters.multilevel.chooseTrunc, return, end
+
+
+
+%% Copy over Training Portion of Data and eliminate testing data
+for C = 'AB', D.(C).rawdata = Datas.(C).Training; end
+for Set = ["CovTraining", "Machine", "Testing"], D.B.(Set) = D.B.rawdata; end
+
+
+%% Find total number of Testing Cohorts
+NACohorts = 2;
+NBCohorts = 2;
+Kfold = parameters.Kfold; %Kfold = 20;
+%FirstCohortIdx = @(x,k,n) (k-1)*ceil(x/n) + 1;
+%LastCohortIdx = @(x,k,n) min( k* ceil(x/n), x);
+%FirstCohortIdx = @(x,k,n) k; 
+%LastCohortIdx = @(x,k,n) k;
+FirstCohortIdx = @(x,k,n) (k-1)*n + 1; LastCohortIdx = @(x,k,n) k*n;
+CohortIdx = @(x,k,n) FirstCohortIdx(x,k,n):LastCohortIdx(x,k,n);
+%for C = 'AB', D.(C).CohortSize = ceil(size(D.A.rawdata,2) / Kfold); end
+
+
+
+%% Initialize WrongPoints array
+RA = min([parameters.data.numofgene, size(D.A.rawdata,2)]);
+WrongPoints = nan(NACohorts, RA, NBCohorts, parameters.data.numofgene);
+
+tic; t1 = toc; 
+
+
+for i = 1:NACohorts
+    WPi = squeeze(WrongPoints(i,:,:,:));
+
+    fprintf('i = %d of %d, \n', i, Kfold); 
+
+    %% Separate ith Cohort from Class A Training
+    D.A.CovTraining = D.A.rawdata;
+    NSamples = size(D.A.CovTraining,2);
+    Idx = CohortIdx(NSamples, i, Kfold);
+    D.A.CovTraining(:,Idx) = [];
+    D.A.Machine = D.A.CovTraining;
+    D.A.Testing = D.A.rawdata(:,Idx);
+    
+
+    %% Get a list of truncation parameters for class A    
+    NA = size(D.A.CovTraining,2); XA = 1/sqrt(NA - 1)*D.A.CovTraining; 
+    [~,SA,~] = svd(XA,'econ', 'vector'); EVA = cumsum(SA.^2)/ sum(SA.^2);
+    Nq = 10; T = linspace(0.85, 0.99, 10); %T = 0.85:(1/Nq):0.99; T(end) = [];
+    uTrunc = unique(sum(EVA(:) <= T(:)', 1)); 
+    if length(uTrunc) < 10 
+     uend = ceil(10 * log10(parameters.data.numofgene)); 
+     uTrunc = floor(linspace(1, uend, 10));
+     uTrunc = unique(uTrunc);
+    end
+
+    %% Apply first layer of filtering (only depends on Class A)
+    parameters.snapshots.k1 = 1;
+    D2 = ProjectOntoT(D, parameters, methods);
+
+    
+ for iT = 1:length(uTrunc)  
+
+     ima = uTrunc(iT);
+     WPiT = squeeze(WPi(ima,:,:));
+    
+     %% Extract Relevant Features from first layer of filtering 
+     for C = 'AB', for Set = ["CovTraining", "Machine", "Testing"]
+             D3.(C).(Set) = D2.(C).(Set)(1:(end-ima), :);
+     end, end
+    
+   
+   
+    
+      
+ for j = 1:NBCohorts
+    %fprintf('j = %d of %d \n', j, Kfold);
+     WPj = squeeze(WPiT(j,:));
+
+    %% Separate jth Cohort from Class BTraining 
+    NSamples = size(D3.B.CovTraining,2);
+    Idx = CohortIdx(NSamples, j, Kfold);
+    D3.B.Testing = D3.B.CovTraining(:,Idx);
+    D3.B.CovTraining(:,Idx) = [];
+    D3.B.Machine = D3.B.CovTraining;
+    
+   
+
+    %% Apply second layer of filtering
+    D4 = ProjectOntoT(D3, parameters, methods);
+  
+    %% Get List of Mres to try
+    SB = cumsum(D4.B.CovTraining.^2,1) ./ sum(D4.B.CovTraining.^2,1); 
+    EVB = mean(SB,2);
+    Nq = 25; T = (1/Nq):(1/Nq):1; T(end) = [];
+    uMres = unique(sum(EVB(:) >= T(:)', 1)); 
+
+    for imres = uMres(:)'
+        parameters2 = parameters;
+        parameters2.multilevel.iMres = imres;
+        D5 = methods.Multi2.SepFilter(D4, parameters2, methods);
+        [WPj(imres)] = methods.Ellipsoids.IdentifyMisplaced(D5, parameters2);
+    end
+
+    %% Interpolate WPiT
+    xq = 1:parameters2.data.numofgene - ima;
+    WPj(xq) = interp1(uMres, WPj(uMres), xq, 'previous');
+    WPiT(j,:) = WPj;
+
+
+ end
+WPi(ima,:,:) = WPiT;
+
+end
+
+%% Iterpolate WPj
+for j = 1:NBCohorts
+[Xq,Yq] = meshgrid(1:parameters.data.numofgene, 1:RA);
+[X, Y] = meshgrid(1:parameters.data.numofgene, uTrunc);
+WPi(:,j,:) = interp2(X,Y,squeeze(WPi(uTrunc,j,:)), Xq, Yq);
+end
+
+WrongPoints(i,:,:,:) = WPi;
+
+end
+
+mct = @mode;
+WrongPoints1 = mct(WrongPoints, [1,3]); WrongPoints1 = squeeze(WrongPoints1);
+%WrongPoints2 = fliplr(WrongPoints1); WrongPoints2(logical(tril(WrongPoints2,-1))) = nan; WrongPoints1 = fliplr(WrongPoints2);
+surf(WrongPoints1, 'FaceAlpha', 0.7), shading interp
+colormap jet, colorbar
+xlabel('Mres'), ylabel('MA')
+minW = min(WrongPoints1, [], 'all'); [ima, imres] = find(WrongPoints1 == minW, 1, 'first');
+%title(sprintf('Best: %0.2g, MA = %d, Mres = %d', minW, ima, imres))
+view(135, 20)
+
+[ma, mres] = find(WrongPoints1 == minW);
+uma = unique(ma); nres = arrayfun(@(i) sum(ma == i), unique(ma));
+disp([uma(:) , nres(:)])
+[~,im] = max(nres); MA = uma(im); Mres = max(mres(ma == MA));
+title(sprintf('Best: %0.2g, MA = %d, Mres = %d', minW, MA, Mres));
+
+t2 = toc; fprintf('MA Mres time: %0.2f \n', t2 - t1)
+
+parameters.snapshots.k1 = MA; parameters.multilevel.Mres = Mres;
+%parameters = methods.Ellipsoids.plotHeatMap1(WrongPoints, parameters);
+%parameters = filefunc(parameters, methods);
+%save(fullfile(parameters.datafolder,parameters.dataname), 'parameters', 'Datas');
+%close all
+
+
+
+
+end
+

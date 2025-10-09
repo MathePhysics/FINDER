@@ -1,0 +1,92 @@
+function parameters = GetCoeff_with_Levels(Datas, parameters, l)
+
+% get number of data points in the A and B training sets
+Anum = size(Datas.A.Training, 2);
+Bnum = size(Datas.B.Training, 2);
+
+AC = zeros(parameters.Training.dsgnmatrix.origin.numofpoints, Anum+1); %the mm-th col is the level of coeff 
+BC = zeros(parameters.Training.dsgnmatrix.origin.numofpoints, Bnum+1); %the mm-th col is the level of coeff 
+
+%[tC, tlevelcoeff, tdcoeffs, tccoeffs] = Coeffhbtrans(tnum, tC, Datas.A.Training, results.Training.origin.multilevel.multileveltree, results.Training.origin.multilevel.ind, results.Training.origin.multilevel.datacell, results.Training.origin.multilevel.datalevel);
+% test
+[AC, Alevelcoeff, Adcoeffs, Accoeffs] = Coeffhbtrans(Anum, AC, ...
+                                            Datas.A.Training, ...
+                                            parameters.Training.origin.multilevel.multileveltree, ...
+                                            parameters.Training.origin.multilevel.ind, ...
+                                            parameters.Training.origin.multilevel.datacell, ...
+                                            parameters.Training.origin.multilevel.datalevel);
+
+[BC, Blevelcoeff, Bdcoeffs, Bccoeffs] = Coeffhbtrans(Bnum, BC, ...
+                                            Datas.B.Training, ...
+                                            parameters.Training.origin.multilevel.multileveltree, ...
+                                            parameters.Training.origin.multilevel.ind, ...
+                                            parameters.Training.origin.multilevel.datacell, ...
+                                            parameters.Training.origin.multilevel.datalevel);
+
+
+%ttotalerror = Testchange(tC, tdcoeffs, tccoeffs, results.Training.origin.multilevel.multileveltree, results.Training.origin.multilevel.ind, results.Training.origin.multilevel.datacell, results.Training.origin.multilevel.datalevel, parameters.Training.dsgnmatrix.origin.numofpoints);
+%ntotalerror = Testchange(nC, ndcoeffs, nccoeffs, results.Training.origin.multilevel.multileveltree, results.Training.origin.multilevel.ind, results.Training.origin.multilevel.datacell, results.Training.origin.multilevel.datalevel, parameters.Training.dsgnmatrix.origin.numofpoints);
+
+parameters.Training.A.C = AC;
+parameters.Training.B.C = BC;
+parameters.Training.A.levelcoeff = Alevelcoeff;
+parameters.Training.B.levelcoeff = Blevelcoeff;
+
+%parameters.Training.A.totalerror = ttotalerror;
+%parameters.Training.B.totalerror = ntotalerror;
+
+
+
+
+% switch parameters.multilevel.nested
+%     case 0 %No Change
+%         parameters.Training.AC = AC(Alevelcoeff == l,:);
+%         parameters.Training.BC = BC(Alevelcoeff == l,:); 
+%     case 2 %Select Levels >= l
+%         parameters.Training.AC = AC(Alevelcoeff >= l,:);
+%         parameters.Training.BC = BC(Blevelcoeff >= l,:); 
+%     case 1 %Select Levels < l
+%         parameters.Training.AC = AC(Alevelcoeff <= l & Alevelcoeff > -1,:);
+%         parameters.Training.BC = BC(Blevelcoeff <= l & Blevelcoeff > -1,:); 
+% end
+
+
+Anum = size(Datas.A.Testing,2);
+Bnum = size(Datas.B.Testing,2);
+
+AC = zeros(parameters.Training.dsgnmatrix.origin.numofpoints, Anum+1); %the mm-th col is the level of coeff 
+BC = zeros(parameters.Training.dsgnmatrix.origin.numofpoints, Bnum+1); %the mm-th col is the level of coeff 
+
+[AC, Alevelcoeff, Adcoeffs, Accoeffs] = Coeffhbtrans(Anum, AC, ...
+                                            Datas.A.Testing, ...
+                                            parameters.Training.origin.multilevel.multileveltree, ...
+                                            parameters.Training.origin.multilevel.ind, ...
+                                            parameters.Training.origin.multilevel.datacell, ...
+                                            parameters.Training.origin.multilevel.datalevel);
+[BC, Blevelcoeff, Bdcoeffs, Bccoeffs] = Coeffhbtrans(Bnum, BC, ...
+                                            Datas.B.Testing, ...
+                                            parameters.Training.origin.multilevel.multileveltree, ...
+                                            parameters.Training.origin.multilevel.ind, ...
+                                            parameters.Training.origin.multilevel.datacell, ...
+                                            parameters.Training.origin.multilevel.datalevel);
+
+
+parameters.Testing.A.C = AC;
+parameters.Testing.B.C = BC;
+parameters.Testing.A.levelcoeff = Alevelcoeff;
+parameters.Testing.B.levelcoeff = Blevelcoeff;
+
+% switch parameters.multilevel.nested
+%     case 0 %No Change
+%         parameters.Testing.AC = AC(levelcoeff == l,:);
+%         parameters.Testing.BC = BC(levelcoeff == l,:); 
+%     case 2 %Select Levels >= l
+%         parameters.Testing.AC = AC(Alevelcoeff >= l,:);
+%         parameters.Testing.BC = BC(Blevelcoeff >= l,:); 
+%     case 1 %Select Levels < l
+%         parameters.Testing.AC = AC(Alevelcoeff <= l & Alevelcoeff > -1,:);
+%         parameters.Testing.BC = BC(Blevelcoeff <= l & Blevelcoeff > -1,:); 
+% end
+
+
+

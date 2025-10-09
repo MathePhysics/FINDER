@@ -1,0 +1,4 @@
+function s = filefunc(parameters)
+
+assert(strcmp(class(parameters.)))
+end

@@ -1,0 +1,73 @@
+function Truncations = GetTruncationsSC(Datas,field,N)
+
+%returns the indices of the quinquagintiles of the eigenvalues of X*X';
+
+
+narginchk(2,3)
+if nargin == 2, N = 50; end
+%p = 0:(1/N):(1 - 1/N);
+p = (1:N)/N;
+%NA = size(Datas.A.(field),2);
+%NFeat = size(Datas.A.(field),1);
+
+Truncations = [];
+
+figure
+for C = 'AB'
+
+    %Compute singular values of the data
+    NC = size(Datas.(C).(field),2);
+    MC = mean(Datas.(C).(field),2);
+    XC = 1 / sqrt(NC - 1) * (Datas.(C).(field) - MC);
+    [~,S] = mysvd(XC);
+
+    %Append zeros and compute explained variance
+    nzeros = min( [size(Datas.A.(field)) - length(S)]);
+    zpad = zeros(1,nzeros);
+    S = [S(:) ; zpad(:)];
+    EV = cumsum(S) / sum(S);
+
+    subplot(2,1,1), plot(S, 'LineWidth', 2), hold on, title('Eigenvalues'), legend({'A', 'B'}), set(gca, 'YGrid', 'on')
+    subplot(2,1,2), plot(EV, 'LineWidth', 2), hold on, title('Explained Variance'), legend({'A', 'B'}), set(gca, 'YGrid', 'on')
+
+    %Find quantiles of explained variance
+    
+    keep = true;
+    while keep
+        myquantile = @(p) find( EV(:)' <= p, 1, 'last');
+        newTruncs = arrayfun(myquantile, p, 'UniformOutput', false);
+        newTruncs = [newTruncs{:}];
+        uTruncs = unique(newTruncs);
+        lTrunc = length(uTruncs);
+        S = log(S + eps); EV = cumsum(S) / sum(S);
+        keep = lTrunc < min([6, length(S)]);
+    end 
+    Truncations = [Truncations, uTruncs];
+
+end 
+
+Truncations = unique(Truncations);
+close all
+
+
+% if length(Truncations) < 6
+%     S = log(S);
+%     EV = cumsum(S) / sum(S);
+%     myquantile = @(p) find( EV(:)' >= p, 1, 'last');
+%     Truncations = arrayfun(myquantile, p);
+% end
+
+
+% for C = 'AB'
+%     NC = size(Datas.(C).CovTraining,2);
+%     meanC = mean(Datas.(C).CovTraining,2);
+%     XC = 1/sqrt(NC - 1)*(Datas.(C).CovTraining - meanC);
+%     [UC, SC] = mysvd(XC);
+% 
+%     eigendata.(['Evec' C]) = UC;
+%     eigendata.(['Eval' C]) = SC;
+% end
+% 
+% 
+% methods.Ellipsoids.ComputeSC(eigendata);
+end

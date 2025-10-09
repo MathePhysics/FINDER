@@ -1,0 +1,255 @@
+function parameters = MethodOfEllipsoids_16(Datas, parameters, methods)
+
+%x = ismember(parameters.multilevel.svmonly, [0,2]);
+%x(2) = isempty(parameters.snapshots.k1);
+%if ~x, return, en
+
+if ~parameters.multilevel.chooseTrunc, return, end
+
+
+%% Prep data
+for C = 'AB'
+    parameters.data.(C) = size(Datas.rawdata.([C 'Data']), 2);
+end
+%Datas = InScriptPrepData(Datas, parameters, methods);
+
+parameters.data.i = 1;
+parameters.data.j = 1;
+Datas = methods.all.prepdata(Datas, parameters);
+
+
+%Get a list of truncation parameters for class A
+%Truncations = GetTruncations(parameters);
+Truncations = GetTruncations(Datas, parameters, methods);
+
+
+
+%Initialize Array of wrongly misplaced points
+Record = Inf;
+P = parameters.data.numofgene;
+M = length(Truncations);
+N = parameters.data.numofgene - min(Truncations);
+WrongPoints = nan(max(Truncations),N);
+WrongPoints2 = WrongPoints;
+SepCrit = WrongPoints;
+
+%Initialize Datas for Projection Onto AMA
+parameters.snapshots.k1 = min(Truncations);
+
+
+%parfor ima = Truncations
+for ima = Truncations(:)'
+    parameters.snapshots.k1 = ima;
+    D2 = ProjectOntoAMA(Datas, parameters,methods);
+    fprintf('Testing Truncation %d of %d \n', ima, max(Truncations));
+    
+%     D2 = Datas;
+%     for C = 'AB', for set = ["CovTraining", "Machine", "Testing"]
+%             D2.(C).(set) = Datas.(C).(set)(1:end-ima,:);
+%     end, end
+
+    D2 = ProjectOntoT(D2, parameters, methods);
+    %Mres = parameters.data.numofgene - ima;
+
+    W = WrongPoints(ima,:);
+    W2 = WrongPoints2(ima,:);
+    SC = SepCrit(ima,:);
+    Mres = parameters.data.numofgene - ima;
+
+    D3 = D2;
+
+    parfor l = 1:Mres
+        [W(l), SC(l)] = IdentifyMisplaced(Datas, parameters, methods, l);
+    end
+
+    WrongPoints(ima,:) = W;
+    %WrongPoints2(ima,:) = W2;
+    SepCrit(ima,:) = SC;
+
+%     if any(W == 0)
+%         WrongPoints = WrongPoints(1:ima,:);
+%         SepCrit = SepCrit(1:ima,:);
+%         break
+%     end
+
+end
+fprintf('\n');
+
+parameters = plotHeatMap1(WrongPoints, SepCrit, parameters);
+%plotHeatMap1(WrongPoints2, parameters);
+%parameters = plotHeatMap2(SepCrit, parameters);
+
+
+
+end
+%==========================================================================
+
+
+function Truncations = GetTruncations(Datas, parameters, methods)
+
+parameters.snapshots.k1 = size(Datas.A.CovTraining, 2);
+
+p = methods.Multi.snapshots(Datas.A.CovTraining, parameters, methods, parameters.snapshots.k1);
+
+EV = cumsum(p.snapshots.eigenvalues) / sum(p.snapshots.eigenvalues);
+%Truncations1 = find(EV < 0.95);
+Truncations1 = find(EV < 0.95 & EV > 0.75);
+
+EV2 = 1 - p.snapshots.eigenvalues / max(p.snapshots.eigenvalues);
+Truncations2 = find(EV2 < 0.95);
+
+%Truncations = intersect(Truncations1, Truncations2);
+Truncations = Truncations1;
+
+end
+%==========================================================================
+% function Truncations = GetTruncations(parameters)
+% 
+% if ~isempty(parameters.snapshots.k1)
+%     Truncations = parameters.snapshots.k1;
+%     return
+% end
+% 
+% %Get maximum truncation 
+% switch parameters.multilevel.splitTraining
+%     case true
+%         minTrainingA = parameters.data.A - parameters.Kfold;
+%         minTestingB = max(parameters.Kfold, mod(parameters.data.B, parameters.Kfold) );
+%         maxTrainingB = parameters.data.B - minTestingB;
+%         maxTrunc = minTrainingA - maxTrainingB;
+%         maxTrunc = min(parameters.data.numofgene-1, maxTrunc);
+%     case false
+%         maxTrunc = parameters.data.numofgene - 1;
+% end
+% 
+% %Get list of truncation parameters
+% %Truncations = 1:maxTrunc;
+% 
+% end 
+%==========================================================================
+
+
+%==========================================================================
+function [wrong, SC] = IdentifyMisplaced(Datas, parameters, methods, l)
+
+
+%% Get wrong predictions
+parameters.multilevel.iMres = l;
+Datas = methods.Multi2.SepFilter(Datas, parameters, methods); %Apply Filter 
+Datas = methods.SVMonly.Prep(Datas); %Prepare Training and Testing Data for SVM
+
+NTA = size(Datas.X_Test_A,1); NTB = size(Datas.X_Test_B,1);
+actual = [ones(NTA,1) ; zeros(NTB,1)];
+
+parameters = methods.SVMonly.fitSVM(Datas, parameters, methods); %Construct SVM Machine 
+%predicted = methods.all.predict(Datas, parameters, methods); % Predict class value using transformed data
+predicted = predict(parameters.multilevel.SVMModel, [Datas.X_Test_A; Datas.X_Test_B]);
+%predicted = squeeze(predicted); predicted = predicted(:,1);
+
+wrong = sum(actual ~= predicted);
+
+%% Get separation criterion
+
+for C = 'AB'
+    [eigendata.(['Evec' C]), eigendata.(['Eval' C])] = mysvd(Datas.(C).Machine);
+end
+
+[~,SC,~,~] = ComputeSeparationCriterion(eigendata);
+
+
+
+end
+%==========================================================================
+
+%==========================================================================
+function parameters = plotHeatMap1(WrongPoints, SepCrit, parameters)
+
+mysurf = @(x) surf(x, 'EdgeColor','none','FaceAlpha',0.7);
+allMres = [];
+
+%Plot Heat Map corresponding to the number of misplaced points for each MA,
+%Mres
+figure('Name', 'In Wrong Ellipsoid'), 
+%h = imagesc(WrongPoints); 
+h = mysurf(WrongPoints);
+J = jet; 
+colormap(J), colorbar
+xlabel('Mres'), ylabel('MA')
+%h.AlphaData = ~isnan(WrongPoints);
+
+
+%Obtain Best Truncation MA 
+[RecordWP, imin] = min(WrongPoints, [], 'all');
+[BestMA,~] = ind2sub(size(WrongPoints), imin);
+title(sprintf('Best Overall MA = %d,\n Misclassification Rate = %d', BestMA, RecordWP))
+
+%i = ind2sub(size(WrongPoints), i);
+[MA, Mres] = find(WrongPoints == RecordWP);
+MA = unique(MA);
+allMres = [allMres, max(Mres)];
+
+SepCrit2 = SepCrit(MA,:);
+
+[RecordSepCrit, imin] = min(SepCrit2, [], 'all');
+[BestMA, BestMres] = ind2sub(size(SepCrit), imin);
+
+SC = SepCrit(BestMA,:);
+figure('Name', 'Best Separation Criterion')
+plot(SC, 'LineWidth', 3), hold on
+scatter(BestMres, SC(BestMres), 40, 'r', 'filled')
+%ylim([0,100])
+title(sprintf('Min SC: %0.3e,\n MA = %d, Mres = %d', RecordSepCrit, BestMA, BestMres))
+allMres = [allMres, BestMres];
+
+
+figure('Name', 'Separation Criterion')
+mysurf(SepCrit)
+xlabel('Mres'), ylabel('MA')
+%zlim([0,100])
+title('Separation Criterion')
+
+
+parameters.snapshots.k1 = BestMA;
+allMres = [parameters.multilevel.Mres(:)', allMres(:)', parameters.data.numofgene - BestMA];
+parameters.multilevel.Mres = sort(unique(allMres));
+
+end
+%==========================================================================
+
+%==========================================================================
+function parameters = plotHeatMap2(SepCrit, parameters)
+%Plot Heat Map corresponding to the number of misplaced points for each MA,
+%Mres
+figure('Name', 'Separation Criterion'), 
+h = imagesc(SepCrit); 
+J = jet; 
+colormap(J), colorbar
+xlabel('Mres'), ylabel('MA')
+h.AlphaData = ~isnan(SepCrit);
+
+
+%Obtain Best Mres
+
+% WP = WrongPoints(parameters.snapshots.k1,:);
+% [Record] = min(WP);
+% Mres = find(WP == Record);
+%SC = SepCrit(parameters.snapshots.k1, Mres);
+SC = SepCrit(parameters.snapshots.k1,:);
+
+[m, imin] = min(SC);
+%imres = Mres(imin);
+figure('Name', 'Separation Criterion 2')
+%plot(SepCrit(parameters.snapshots.k1,:), 'LineWidth', 3);
+plot(SC, 'LineWidth', 3);
+hold on
+scatter(imin, m, 50, 'r', 'filled');
+title(sprintf('Mres = %d', imin));
+
+Mres = [parameters.multilevel.Mres,...
+    imin,...
+    parameters.data.numofgene - parameters.snapshots.k1];
+
+
+parameters.multilevel.Mres = sort(unique(Mres));
+end
+%==========================================================================
