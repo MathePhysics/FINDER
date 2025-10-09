@@ -2,9 +2,7 @@ Suite of Classification Algorithms based on the following article:
 
 Trajan Murphy*, Akshunna S. Dogra*, Hanfeng Gu, Caleb Meredith, Mark Kon, Julio En-
 rique Castrillion-Candas*, for the Alzheimer’s Disease Neuroimaging Initiative, FINDER:
-Feature Inference on Noisy Datasets using Eigenspace Residuals, 2025. 
-
-(*Equal Contributions, correspondence should be directed to: adogra@nyu.edu).
+Feature Inference on Noisy Datasets using Eigenspace Residuals, 2025. (*Equal Contributions, correspondence should be directed to: adogra@nyu.edu).
 
 Below is the step by step instruction to reproduce the results as shown.
 
