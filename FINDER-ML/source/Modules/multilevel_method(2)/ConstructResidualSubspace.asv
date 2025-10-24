@@ -1,0 +1,23 @@
+function parameters = ConstructResidualSubspace(Datas, parameters, methods)
+    %Estimate Class A Covariance Matrix
+
+    NA = size(Datas.A.CovTraining,2);
+    XA = 1/sqrt(NA - 1)*Datas.A.CovTraining;
+    [UA,~] = mysvd(XA, parameters.snapshots.k1);
+
+    NB = size(Datas.B.CovTraining,2);
+    ZB = 1/sqrt(NB - 1) * (Datas.B.CovTraining - mean(Datas.B.CovTraining,2));
+   
+    G = ZB * (ZB' - (ZB'*UA)*UA'); %Transform Class B Covariance matrix 
+
+    Mres = parameters.data.numofgene - parameters.snapshots.k1;
+    rankG = min([NB-1, Mres]); %Estimate the rank of G
+    [T1,~] = eigs(G,rankG); %Basis for Ker(G)_perp
+    G2 = T1' - (T1'*UA)*UA'; T2 = null(G2); %Basis for Ker(G)
+    T = [T1 , T2]; %Basis for R^P
+
+    S = T - UA*(UA'*T);
+    Snorms = sum(S.*S,1);
+    
+    parameters.data.residualSubspace = S ./ sqrt(Snorms) ;
+end

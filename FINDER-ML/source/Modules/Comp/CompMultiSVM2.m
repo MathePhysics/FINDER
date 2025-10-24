@@ -5,15 +5,13 @@ delete(gcp('nocreate'))
 
 methods = DefineMethods;
 
-
 % initialize parameters
 [parameters] =  methods.all.initialization();
 
-D = methods.all.ValuesTable('Balance', {true, false},...
+D = methods.all.ValuesTable('Balance', {false, true},...
                             'Kernel', {false, true},...
                             'Eigenspace', {'smallest', 'largest'},...
-                            'Algorithm', {2, 1, 0}, ...
-                            'Label', {'Plasma_M12_ADCN'} ...
+                            'Algorithm', {2,1,0}...
                             );
 for irow = 1:height(D)
 
@@ -21,12 +19,6 @@ for irow = 1:height(D)
  parameters.multilevel.splitTraining = D.Balance(irow); %D{irowkNN,1};
  parameters.multilevel.eigentag = D.Eigenspace{irow};
  parameters.multilevel.svmonly = D.Algorithm(irow); %D{irowkNN,4};
- parameters.data.label = D.Label{irow};
- parameters.data.name = [parameters.data.label, '.txt'];
-    
-    
-    
-    
 
 
  tic;
@@ -95,7 +87,8 @@ for irow = 1:height(D)
      
       
 
-     parameters = filefunc(parameters, methods);
+     parameters = methods.all.filefunc(parameters, methods);
+     Datas.rawdata.AData = []; Datas.rawdata.BData = [];
      save(fullfile(parameters.datafolder,parameters.dataname), 'parameters', 'results', 'Datas');
      save('irow.mat', 'irow');
 

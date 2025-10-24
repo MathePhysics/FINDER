@@ -1,0 +1,112 @@
+function PrintTablesAlz
+
+%% Load Table
+
+fileID = fopen(fullfile('..','results','24','Kfold','Alzheimer_Results_Table.txt'), 'w');
+
+
+ADNIs = ["ADCN", "ADLMCI", "CNLMCI"];
+Balances = ["Balanced", "Unbalanced"];
+ADNIstructs = [];
+ADNIresults = [];
+SVMonly = [];
+isBalanced = [];
+ADNIlabels = [];
+
+
+for iBalance = 1:length(Balances)
+    Balance = Balances(iBalance);
+
+for iADNI = 1:length(ADNIs)
+ADNI = ADNIs(iADNI);
+ADNI  = sprintf('Plasma_M12_%s', ADNI);
+
+    folderpath = fullfile('..','results','24','Kfold',ADNI, 'Leave 1 out', Balance);
+    X = dir(folderpath);
+    X(1:2) = [];
+    X = {X.name};
+    iX = cellfun(@(x) contains(x, '.mat'), X);
+    X = cellfun(@(x) load(fullfile(folderpath, x)) , X(iX));
+    X = X(iX);
+
+
+    ADNIstructs = [ADNIstructs; X(:)];
+    % svmonly = arrayfun(@(x) x.parameters.multilevel.svmonly, X);
+    % SVMonly = [SVMonly, svmonly(:)'];
+    % 
+    % ADNIresults = [ADNIresults, X.results];
+    % 
+    % adniLabels = arrayfun(@(x) x.parameters.data.label, X, 'UniformOutput', false);
+    % ADNIlabels = [ADNIlabels, adniLabels{:}];
+    % 
+    % isbalanced = arrayfun(@(x) x.parameters.multilevel.splitTraining, X);
+    % isBalanced = [isBalanced, isbalanced(:)'];
+    %usvmonly = unique(svmonly);
+end
+end
+
+getSVM = arrayfun(@(x) x.parameters.multilevel.svmonly, ADNIstructs);
+
+
+
+ISVM = {1, [0,2]};
+
+for iacc = ["AUC", "accuracy"]
+
+for isvm = 1:length(ISVM)
+    
+    ADNIstruct1 = ADNIstructs(ismember(getSVM, ISVM{isvm}));
+
+    switch isvm 
+        case 1 
+            ncol = 6;
+            colnames = ADNIstruct1(1).parameters.misc.MachineList;
+        case 2
+            ncol = 7;
+            colnames = ["MLS w/o RBF", "MLS w/ RBF", ...
+                "ACA-S w/o RBF", "ACA-S w/ RBF", "ACA-L w/o RBF", "ACA-L w/ RBF"];
+    end
+
+    colline = [repmat('|c',[1 ncol]), '|'];
+
+
+for iBalance = 1:length(Balances)
+
+    getBalance = arrayfun(@(x) x.parameters.multilevel.splitTraining, ADNIstruct1);
+    ADNIstruct2 = ADNIstruct1(getBalance == strcmp(Balances));
+
+    fprintf(fileID, '\\begin{tabular}')
+    fprintf(fileID, '\\{%s} \n', colline);
+    fprintf(fileID, '\\hline \n')
+    fprintf(fileID, '\\multicolumn{%s}{|c|}{%s} \\\\ \n', ncol, Balance);
+    fprintf(fileID, '\\hline \n ');
+    fprintf(fileID, '& %s', colnames);
+    fprintf(fileID, ' \\\\ \n \\hline \n \n');
+    
+    for iADNI = 1:length(ADNIs)
+        ADNI = ADNIs(iADNI);
+        getLabel = arrayfun(@(x) x.parameters.data.label, ADNIstruct2, 'UniformOutput', false);
+        ADNIstruct3 = ADNIstruct2(strcmp(getLabel);
+
+        switch ADNI
+            case "ADCN", coltitle = 'AD vs. CN';
+            case "ADLMCI", coltitle = 'AD vs. LMCI';
+            case "CNLMCI", coltitle = 'CN vs. LMCI';
+        end
+        fprintf(fileID, '%s', coltitle)
+        fprintf(fileID, '& %0.3f', ADNIstruct3.results.(iacc));
+        fprintf(fileID, '\\\\ \n\n');
+
+        
+    end
+        
+
+    
+end
+end
+
+end
+    
+
+
+end

@@ -1,0 +1,415 @@
+function parameters = MethodOfEllipsoids(Datas, parameters, methods)
+%Finds the number of Class A points lying inside the 0.95-Ellipsoid
+%determined by Class B plut the number of Class B points lying inside the
+%0.95-Ellipsoid determined by Class A;
+
+colors = lines(2);
+fprintf('Computing Ideal truncation MA and residual dimension Mres\n')
+
+if ~isempty(parameters.snapshots.k1) && ~isempty(parameters.multilevel.Mres), return, end
+if ismember(parameters.multilevel.svmonly, [0,1]), return, end
+if isempty(parameters.multilevel.concentration), parameters.multilevel.concentration = 0.95; end
+
+%% Prep data
+Classes = 'AB';
+for I_Ma = 'ij', parameters.data.(I_Ma) = 1; end
+for Class = Classes, parameters.data.(Class) = size(Datas.rawdata.([Class 'Data']), 2); end
+Datas = methods.all.prepdata(Datas, parameters);
+BackupDatas = Datas;
+
+
+
+%% Get maximum allowable truncation parameter size
+maxMA = GetMaxTrunc(parameters);
+switch isempty(parameters.snapshots.k1)
+    case true, MA = 2:maxMA;
+    case false, MA = parameters.snapshots.k1;
+end
+NinWrongEllipse = nan(maxMA, parameters.data.numofgene);
+
+
+Misplaced = Inf;
+BestMA = [];
+BestMres = [];
+PhiA = Datas.A.eigenvectors;
+
+
+figure(1), hold on, axis square
+for ima = MA 
+    %% Project Class B data onto Class A orthogonal subspace
+
+    dimOrth = parameters.data.numofgene - ima; %Get the dimension of the orthogonal complement of the class A principal eigenspace
+    V_Ma = PhiA(:, (ima+1):end); %Get a basis for this subspace
+    projB = V_Ma' * Datas.B.Training; %Project the Class B data onto this subspace
+    [T_Ma, Sigma_Ma] = mySVDfull(projB); %Get coefficients for residual subspace
+    I_Ma = speye(dimOrth);
+    stop = mod(ima, floor(maxMA/10)) == 0; 
+for imres = 2:dimOrth
+        cla
+        
+        switch parameters.multilevel.eigentag
+            case 'largest' 
+                T_Ma_Mres = T_Ma(:,1:imres); %Coefficients for prinicpal eigenspace
+                %I_Ma_Mres = I_Ma(:,1:imres);
+                Sigma_Ma_Mres = Sigma_Ma(1:imres);
+            case 'smallest'
+                T_Ma_Mres = T_Ma(:,end-imres+1:end); %Coefficients for terminal eigenspace
+                %I_Ma_Mres = I_Ma(:,end-imres+1:end); %Coefficients for terminal eigenspace
+                Sigma_Ma_Mres = Sigma_Ma(end-imres+1:end);
+        end
+
+        %% Update Data
+        S_Ma_Mres = V_Ma * T_Ma_Mres;        
+        for i = 'AB', for set = ["Training", "Testing"]
+        Datas.(i).(set) = S_Ma_Mres' * Datas.(i).(set);
+        end, end
+        ClassMean = mean(Datas.(Class).Training, 2);
+       
+
+        X = UpdateCovariance(Datas, parameters);
+        for i = 1:2
+
+        %% Construct new covariance eigendata
+        Class = Classes(i);
+        
+
+        %% Get new eigendata        
+        switch Class
+            case 'A'
+                Lambda_A_MA = sqrt(Datas.A.eigenvalues(end-dimOrth+1:end));
+                data = Lambda_A_MA(:) .* T_Ma_Mres;
+                [~,Eval,Evec] = svd(data'*data, 'vector');
+
+                %% Check                
+                n = norm(data'*data - X.A.covariance)/norm(X.A.covariance);
+                fprintf('Class A covariance check: %0.3e \n', n);
+            case 'B'
+                %Evec = I_Ma_Mres;
+                Evec = speye(imres);
+                Eval = Sigma_Ma_Mres;
+                %% Check
+                n = norm(diag(Eval) - X.B.covariance)/norm(X.B.covariance);
+                fprintf('Class B covariance check: %0.3e \n\n', n);
+        end
+
+        [Evec, Eval] = trimEigendata(Evec, Eval);
+        %CompareCovariances(Evec, Eval, Datas, parameters, Class);
+        stop = stop && length(Eval) == 2;
+        
+
+        %% Find radius which captures 95% of the points in each class
+        radius = FindPercentileRadius(Datas.(Class).Training, ClassMean, Evec, Eval, parameters.multilevel.concentration);
+
+        %% Develop check and to determine if a point y lies inside an ellipse
+        IsInEllipseInline{i} = @(Y) IsInEllipse(Y, ClassMean, Evec, Eval, radius);
+
+        % Functions to visualize data in two-dimensions
+        if stop
+            Q = (Eval.^0.5) .* Evec; %Transforms unit circle into ellipse
+            plotEllipseInline{i} = @()  plotEllipse(Evec, Eval, radius, ClassMean, gca); 
+            scatterInline{i} = @() scatter(Datas.(Class).Training(1,:), ...
+                                           Datas.(Class).Training(2,:), ...
+                                           36, colors(i,:));
+            scatterInline2{i} = @() scatter(Datas.(Class).Testing(1,:), ...
+                                           Datas.(Class).Testing(2,:), ...
+                                           36, 0.7*colors(i,:), 'filled');
+        end
+        end
+        
+
+        %% Determine number of points from each class inside the wrong ellipse
+        NinWrongEllipse(ima, imres) = 0;
+        for i = 1:2  
+
+            j = 2 - i + 1;
+            Class = Classes(i);
+            EllipseCheck = IsInEllipseInline{j}(Datas.(Class).Training);
+            if stop
+                plotEllipseInline{i}();
+                scatterInline{i}();
+                scatterInline2{i}();
+            end  
+            NinWrongEllipse(ima, imres) = NinWrongEllipse(ima, imres) + sum( EllipseCheck );
+        end
+
+        if NinWrongEllipse(ima, imres) < Misplaced
+            Misplaced = NinWrongEllipse(ima, imres);
+            BestMA = ima; BestMres = imres;
+            %if NinWrongEllipse(ima, imres) == 0, break, end
+        end
+
+        if stop
+            title( sprintf('MA = %d, Misplaced = %d', ima, NinWrongEllipse(ima, imres) ))
+            pause(0.5)
+        end
+        
+
+
+
+
+        Datas = BackupDatas;
+end
+%if NinWrongEllipse(ima, imres) == 0, break, end
+Datas = BackupDatas;
+end
+
+
+parameters.snapshots.k1 = BestMA;
+N = NinWrongEllipse(BestMA,:);
+
+
+
+parameters.multilevel.Mres = setMres( find(N == Misplaced) , parameters) ;
+fprintf('MA: %d\nMres: %d \n Minimum points in wrong ellipsoid:%d\n\n', BestMA, BestMres, Misplaced)
+
+
+plotHeatMap(NinWrongEllipse)
+
+figure('Name', 'Histogram')
+histogram(NinWrongEllipse(~isnan(NinWrongEllipse)))
+
+
+
+close all
+end
+
+%% ========================================================================
+%% Auxillary Functions: 
+%% ========================================================================
+
+%==========================================================================
+function maxTrunc = GetMaxTrunc(parameters)
+minTrainingA = parameters.data.A - parameters.Kfold;
+minTestingB = max(parameters.Kfold, mod(parameters.data.B, parameters.Kfold) );
+maxTrainingB = parameters.data.B - minTestingB;
+maxTrunc = minTrainingA - maxTrainingB;
+maxTrunc = min(parameters.data.numofgene, maxTrunc);
+end
+%==========================================================================
+
+%==========================================================================
+function [Evec, Eval] = mySVDfull(data)
+NFeatures = size(data,1);
+NSamples = size(data, 2);
+mx = mean(data,2);
+data = data - mx;
+data = data * sqrt(1/(NSamples - 1));
+[Evec, Eval,~] = svd(data*data', 'vector');
+%Eval = Eval.^2;
+
+if length(Eval) < NFeatures
+    m = length(Eval);
+    missingZeros = zeros(NFeatures - m,1);
+    Eval = [Eval(:) ; missingZeros];
+end
+
+%Test
+% A1 = data * data';
+% A2 = Evec * (Eval .* Evec');
+% disp(norm(A1 - A2));
+
+end
+%==========================================================================
+
+%==========================================================================
+function [Evec, Eval] = mySVDreduced(data)
+NFeatures = size(data,1); % number of data points
+NSamples = size(data, 2);
+
+if NFeatures <= NSamples %data matrix is wide
+    [Evec, Eval] = mySVDfull(data);
+    return
+end
+
+
+if NFeatures > NSamples %Data matrix is tall  
+    mx = mean(data,2);
+    data = data - mx;
+    data = data * sqrt(1/(NSamples - 1));
+    C = data' * data;    
+    [~,S,V] = svd(C, 'vector');
+    S = S(:)'; 
+    Evec = (data * V) ./ sqrt(S);
+    Eval = S';
+end
+
+%Test
+A1 = data * data';
+A2 = Evec * (Eval .* Evec');
+disp(norm(A1 - A2));
+end
+%==========================================================================
+
+%==========================================================================
+function [Evec, Eval] = trimEigendata(Evec, Eval)
+%Deletes zero eigenvalues and eigenvectors
+Eval = Eval(:);
+tol = eps * max(size(Evec)) * max(Eval);
+isnonzero = Eval > tol;
+Eval = Eval(isnonzero);
+Evec = Evec(:, isnonzero);
+end
+%==========================================================================
+
+%==========================================================================
+% function mysvd = mysnapshot(parameters)
+% switch parameters.multilevel.eigentag
+%     case 'largest', mysvd = @snapshotssub2;
+%     case 'smallest', mysvd = @snapshotssub3;
+% end
+% end
+%==========================================================================
+
+%==========================================================================
+% function [Evec] = ComputeOptimalSubspace(Datas, parameters)
+% ResidA = PhiA(:, (parameters.snapshots.k1 + 1):end);
+% %ZMBT = Datas.B.Training -  mean(Datas.B.Training,2);
+% %dimSubspace = parameters.multilevel.Mres;
+% %projCov = ResidA' * ZMBT;
+% projCov = ResidA' * Datas.B.Training;
+% mysvd = mysnapshot(parameters);
+% 
+% [~, ~, ~, Evec] = mysvd(projCov, parameters.multilevel.Mres);
+% end
+%==========================================================================
+
+%==========================================================================
+% function Datas = UpdateData(S, Datas, parameters)
+% ResidA = PhiA(:, (parameters.snapshots.k1 + 1):end);
+% P = ResidA * S;
+% for i = 'AB', for set = ["Training", "Testing"]
+%         Datas.(i).(set) = P' * Datas.(i).(set);
+% end, end
+% end
+%==========================================================================
+
+%==========================================================================
+% function [Evec, Eval] = UpdateEigendataA(Eval, S, parameters)
+% Nevals = size(S,2);
+% switch parameters.multilevel.eigentag
+%     case 'largest', Eval = Eval(1:Nevals);
+%     case 'smallest', Eval = Eval(end-Nevals+1:end);
+% end
+% C = (Eval(:)'.^0.5) .* S;
+% [Evec, Eval, ~] = svd(C, 'vector');
+% end
+%==========================================================================
+
+%==========================================================================
+% function [Evec, Eval] = UpdateEigendataB(Eval, S, parameters)
+% Nevals = length(Eval);
+% I = speye(parameters.data.numofgene);
+% 
+% switch parameters.multilevel.eigentag
+%     case 'largest'
+%         Eval = Eval(1:Nevals);
+%         Evec = I(:,1:Nevals);
+%     case 'smallest'
+%         Eval = Eval(end-Nevals+1:end);
+%         Evec = I(:,end-Nevals+1:end);
+% end
+% end
+%==========================================================================
+
+%==========================================================================
+% function [Evec, Eval] = UpdateEigendata(Eval, S, Class, parameters)
+%     switch Class
+%         case 'A', [Evec, Eval] = UpdateEigendataA(Eval, S, parameters);
+%         case 'B', [Evec, Eval] = UpdateEigendataB(Eval, S, parameters);
+%     end
+% end
+%==========================================================================
+
+%==========================================================================
+function radius = FindPercentileRadius(Y,center, Evec, Eval, percentile)
+%Finds the radius r such that Ellipse:
+% Eval.*Evec*(Y - center)x: x'x < r^2 contains percentile of the data
+% points
+
+w = Y - center;
+sphere = (1./Eval) .* (Evec' * w);
+radius = quantile( sqrt(sum(sphere.^2, 1)), percentile);
+
+end
+%==========================================================================
+
+%==========================================================================
+function idx = IsInSpan(Y, center, Evec)
+%determines whether or not the vectors in Y - center lies in the span of the
+%eigenvectors of the matrix Evec
+tol = eps * max(size(Evec));
+w = Y - center;
+residuals = (Evec * Evec' * w) - w;
+
+idx = sqrt(sum(residuals.^2,1)) < tol;
+end
+%==========================================================================
+
+%==========================================================================
+function idx = SatisfiesNorm(Y, center, Evec, Eval, radius)
+%determines wether or not the vectors in Y - center lie in the ellipse
+%specified by 
+% Evec * Eval. * Evec' * x, as x ranges over the unit ball. 
+Eval = Eval(:);
+w = Y - center;
+x =  (1./Eval) .* (Evec' * w);
+idx = sqrt(sum( x.^2, 1)) < radius;
+end
+%==========================================================================
+
+%==========================================================================
+function idx = IsInEllipse(Y, center, Evec, Eval, radius)
+idx = IsInSpan(Y, center, Evec) & SatisfiesNorm(Y, center, Evec, Eval, radius);
+end
+%==========================================================================
+
+%==========================================================================
+function plotEllipse(Evec, Eval, r, center, ax)
+%plots the ellipse given by x' * Q * x = r, for PSD Q and radius r on the
+%axes ax
+Q = Eval.*Evec;
+t = linspace(0,2*pi,500); t = t(:)';
+ellipse = r*Q*[cos(t) ; sin(t)] + center(:) ;
+plot(ax, ellipse(1,:), ellipse(2,:), 'LineWidth', 2, 'Color', 'k');
+end
+%==========================================================================
+
+%==========================================================================
+function plotHeatMap(Data)
+figure('Name', 'In Wrong Ellipsoid'), imagesc(Data), 
+J = jet; J(1,:) = [1,1,1]; J(end,:) = [0,0,0]; 
+colormap(J), colorbar
+xlabel('Mres'), ylabel('MA')
+end
+%==========================================================================
+
+%==========================================================================
+function Y = setMres(Mres, parameters)
+%X is a vector of values of Mres for which the separation criterion attains
+%a mininimum. Y represent linearly spaced integers b
+
+if length(Mres) < parameters.multilevel.l
+    Y = Mres; return
+end
+
+Y = linspace(min(Mres), max(Mres)-1, parameters.multilevel.l);
+Y = ceil(Y);
+I = knnsearch(Mres(:), Y(:));
+Mres = Mres(:); I = I(:);
+Y = Mres(I);
+Y = Y(:)';
+end
+%==========================================================================
+
+%==========================================================================
+function CompareCovariances(Evec, Eval, Datas, parameters, Class)
+C1 = Evec * (Eval(:)' .* Evec');
+%C1 = Evec * (sqrt(Eval(:))' .* Evec');
+%C1 = Evec * ( (Eval(:).^2)' .* Evec');
+Datas = UpdateCovariance(Datas, parameters);
+C2 = Datas.(Class).covariance;
+fprintf('Class %s covariance difference: %0.3e\n', Class, norm(C1 - C2)/norm(C2));
+end
+
+    
+

@@ -1,0 +1,42 @@
+function [S,V] = mysvd(A,k,sigma)
+
+%%Compute the k smallest (largest) eigenvalues of A' * A;
+
+if k > size(A,2)
+    errorstr('k must be less than or equal to %d', size(A,2));
+    error(errorstr)
+end
+
+Q = A' * A;
+
+switch sigma
+    case 'largest', obj = @(x) -1*objfun(x,Q);
+    case 'smallest', obj = @(x) objfun(x,Q);
+end
+
+Hess = @(x,lambda)
+
+for i = 1:k
+end
+
+
+end
+
+function [f, gradf] = objfun(x, Q)
+x = x(:);
+f = x' * Q * x;
+gradf = 2 * Q * x;
+end
+
+function [cineq, ceq, gradineq, gradeq] = constraints(x)
+%first constraint is that x'*x = 1;
+x = x(:);
+cineq = []; gradineq = [];
+ceq = sum(x.^2) - 1;
+gradeq = 2*x;
+end
+
+function H = Hessfun(x, lambda, Q)
+n = size(Q,1);
+H = 2*(Q + lambda.eqnonlin(1)*speye(n,n));
+end

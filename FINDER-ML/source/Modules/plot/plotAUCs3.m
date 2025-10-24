@@ -2,11 +2,12 @@ function plotAUCs3
 close all
 
 DataSets = ["newAD"];
-resultFolder = ["1", "18"];
-axstr = {'Auto-I', 'Manual', 'Auto-II'};
+resultFolder = ["Manual_Hyperparameter_Selection", ...
+                "MethodOfEllipsoids_1",...
+                "MethodOfEllipsoids_26"];
+axstr = {'Manual', 'Auto-I', 'Auto_II'};
 
 CrossVal = 'Kfold';
-
 %% Set Plot Parameters
 YTicks = 0.6:0.05:1; YLim = [min(YTicks) max(YTicks)]; 
 YTickLabels = num2cell(YTicks); YTickLabels(2:2:end) = {''};
@@ -27,13 +28,7 @@ LineColors = 0.75*LineColors + 0.25*ones(3);
 
 legstr = {'Benchmark', 'MLS', 'ACA'};
 
-
-
-
-
 %% Iterate over Data Sets, Balances, and Accuracy measures
-
-
 
 
 for iDS = 1:length(DataSets)
@@ -46,9 +41,6 @@ for iacc = 1:length(Accs)
     Acc = Accs(iacc);
     iplot = 0;
     
-    
-    
-   
 for iBalance = 1:length(Balances)
 
     Balance = Balances(iBalance);
@@ -100,6 +92,7 @@ switch isvm
         
         iBench = strcmp(legstr, 'Benchmark');
         [barData(iMethod, iBench), iBest] = max(Bestx.results.(Acc));
+        legstr{iBench} = Bestx.parameters.misc.MachineList(iBest);
         %axstr{iMethod, iBench} = char(Bestx.parameters.misc.MachineList(iBest));
 
     case 0 

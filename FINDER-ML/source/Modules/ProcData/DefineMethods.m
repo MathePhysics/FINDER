@@ -106,7 +106,7 @@ methods.Multi.dataGeneralization = @CompMultiSemiSynthetic;
 
 methods.Multi2.CompMulti = @CompMultiACA2;
 methods.Multi2.Kfold = @CompMultiACA2Sub;
-methods.Multi2.ChooseTruncations = @MethodOfEllipsoids_26; %@MethodOfEllipsoids; %
+methods.Multi2.ChooseTruncations = @MethodOfEllipsoids_18; %@MethodOfEllipsoids; %
 methods.Multi2.InitializeResults = [];
 methods.Multi2.ConstructResidualSubspace = @ResidSubspace2; %@ConstructOptimalBasisDimL; %@ConstructResSpace2; %
 methods.Multi2.SepFilter = @SepFilter3; %@SepFilter3;

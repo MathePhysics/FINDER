@@ -1,0 +1,28 @@
+function parameters = GetMaxMultiLevel(Datas, parameters, methods)
+
+if isnumeric(parameters.multilevel.l)
+    return
+elseif strcmp(parameters.multilevel.l, 'max')
+        p = parameters;
+        p.Training.origin = methods.Multi.snapshots(Datas.rawdata.AData, p, methods, p.snapshots.k1);
+        p = methods.Multi.dsgnmatrix(methods, p);
+        p = methods.Multi.multilevel(methods, p);
+        parameters.multilevel.l = p.Training.origin.multilevel.maxlevel;
+end
+
+if isnumeric(parameters.multilevel.Mres)
+    return
+elseif strcmp(parameters.multilevel.Mres, 'MLS')
+    if parameters.multilevel.chooseTrunc
+        warning('parameters.multilevelchooseTrunc is set to true')
+    end
+    %thresh = 2*parameters.snapshots.k1;
+    %dimWend = nextpow2(parameters.data.numofgene) - nextpow2(thresh);
+    %dimW0 = nextpow2(thresh);
+    %dimensions = thresh * 2.^(1:dimWend);
+    dimEnd = floor( log2( parameters.data.numofgene / (2 * parameters.snapshots.k1);
+    dimensions = parameters.snapshots.k1 * 2.^(1:nextpow2(dimEnd)+1);
+    parameters.multilevel.Mres = min(dimensions, parameters.data.numofgene) - parameters.snapshots.k1;
+end
+
+end

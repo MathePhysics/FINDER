@@ -1,7 +1,7 @@
 function [parameters] = InitializeParameters()
 
 %% Data parameters
-parameters.data.path = '/restricted/projectnb/sctad/Audrey/SOMAscan7k_KNNimputed_formatted_data/'; 
+parameters.data.path = ''; 
 parameters.data.label = 'SOMAscan7k_KNNimputed_AD_CN'; 
 parameters.data.name = [parameters.data.label, '.txt'];
 
@@ -32,7 +32,7 @@ parameters.snapshots.k1 = 8;% KL Truncation for Class A
 parameters.multilevel.svmonly = 1; % 0 = MLS, 1 = Benchmark, 2 = ACA
 parameters.multilevel.splitTraining = false; % true = Balanced, false = Unbalanced
 parameters.multilevel.eigentag = 'largest'; %'largest' = ACA-L, 'smallest' = ACA-S
-parameters.multilevel.Mres = 'MLS';
+parameters.multilevel.Mres = [];
 
 parameters.multilevel.l = 'max'; % number of multilevel subspaces for MLS method (set to max if unsure)
 parameters.multilevel.nested = 1; % if 0 then non nested, if 1 nesting is 0-l, if 2 nesting is l-max(l), 
@@ -45,7 +45,7 @@ parameters.misc.MachineList = ["SVM_Linear", "SVM_Radial", "LogitBoost", "RUSBoo
 
 
 %% Assorted parameters
-parameters.parallel.on = false;% true = use parallel toolbox
+parameters.parallel.on = true;% true = use parallel toolbox
 parameters.svm.kernal = true; % true = use RBF for SVM separating surface (FINDER only)
 parameters.gpuarray.on = false; % true = convert all data arrays to GPU arrays. 
 parameters.snapshots.controlRand = false;

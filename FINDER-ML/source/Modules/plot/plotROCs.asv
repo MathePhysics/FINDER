@@ -1,0 +1,71 @@
+X(1) = load('Tan-ionosphere-Gene-SVMOnly-12-Eigen-Radial-PZBAOptimization-Par-Normalized-Levels-0-8-Results.mat');
+X(2) = load('Tan-ionosphere-Gene-SVMOnly-12-Eigen-Radial-Untransformed-Par-Normalized-Levels-0-8-Results.mat');
+X(3) = load('Tan-ionosphere-Gene-Inner_Nesting-12-Eigen-Radial-Untransformed-NoPar-Normalized-Levels-0-8-Results.mat');
+X(4) = load('Tan-ionosphere-Gene-Inner_Nesting-12-Eigen-Radial-PZBAOptimization-Par-Normalized-Levels-0-8-Results.mat');
+
+colors = [255, 80, 80; %red
+         255, 255, 102; %yellow
+         0, 176, 80; %green
+         0, 176, 240] / 255; %blue
+
+
+%% ===================================
+% Now create plots
+%% ====================================
+
+createPatch = @(x,y) [x ; flipud(y)];
+
+close all
+figure()
+axis;
+xlim([0,1])
+ylim([0,1])
+grid on
+hold on
+legstr = {};
+for iX = 1:length(X)
+    
+    results = X(iX).results;
+    
+
+    switch X(iX).parameters.multilevel.svmonly
+        case true
+            resultField = 'svm';
+            [~,bestLevel] = max(results.(resultField).AUC);
+            machine = 'SVM';
+            transTag = '';
+            levelTag = '';
+
+        case false
+            resultField = 'multilevel';
+            [~,bestLevel] = max(results.(resultField).AUC);
+            machine = 'ML'
+            transTag = '-PZ';
+            levelTag = sprintf(' (l = %d)', bestLevel - 1);
+    end
+
+    
+
+
+    %plot ROC curve
+    plot(results.(resultField).mean.Xroc(:,bestLevel),...
+           results.(resultField).mean.Yroc(:,bestLevel),...
+           'LineWidth', 2,...
+           'Color', colors(iX,:))
+
+    %construct legend title
+    legtitle = [machine, transTag, levelTag];
+    legstr = [legstr , legtitle];
+
+
+end
+
+plotTitle = X(1).parameters.data.label;
+plotTitle(1) = upper(plotTitle(1));
+
+title(plotTitle)
+legend(legstr, 'Location', 'eastoutside')
+xlabel('False Positive Rate')
+ylabel('True Positive Rate')
+
+for 

@@ -1,0 +1,29 @@
+function [Datas, parameters] = ApplyTransformation(Datas, parameters)
+
+H = Datas.H;
+E = Datas.E;
+
+Datas.normal.Training = E * H' * Datas.normal.Training;
+Datas.normal.Testing = E * H' * Datas.normal.Testing;
+Datas.tumor.Training = E * H' * Datas.tumor.Training;
+Datas.tumor.Testing = E * H' * Datas.tumor.Testing;
+
+%parameterFields = {'eigenvectors', 'eigenfunction', 'mx', 'realizations'};
+parameterFields = [ "eigenfunction", "mx", "realizations"];
+
+parameters.Training.origin.snapshots.eigenfunction =...
+    (E*H'*parameters.Training.origin.snapshots.eigenfunction')';
+parameters.Training.origin.snapshots.mx =...
+    (E*H'*parameters.Training.origin.snapshots.mx);
+
+
+
+for field = parameterFields
+    parameters.Training.origin.snapshots.(field) =...
+        E * H' * parameters.Training.origin.snapshots.(field);
+end
+
+% parameters.Training.origin.snapshots.eigenvectors
+% parameters.Training.origin.snapshots.eigenfunction
+% parameters.Training.origin.snapshots.eigenvectors
+% parameters.Training.origin.snapshots.eigenvectors

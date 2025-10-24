@@ -1,0 +1,33 @@
+function results = InitializeResults2(parameters)
+
+
+switch parameters.multilevel.svmonly
+    case 1 %nLevels = 1;
+            nLevels = length(parameters.misc.MachineList);
+    case 0, nLevels = parameters.multilevel.l + 1;
+    case 2, nLevels = length(parameters.multilevel.Mres); %parameters.multilevel.l + 1;
+end
+
+switch parameters.data.validationType
+    case 'Synthetic', nY = 3*parameters.synthetic.NTest;
+    case 'Cross', nY = parameters.cross.NTestA + parameters.cross.NTestB;
+    case 'Kfold', nY = 3*parameters.Kfold;
+end
+
+results.array = nan(length(parameters.data.NAvals),...
+                    length(parameters.data.NBvals),...
+                    nLevels,...
+                    nY, ...
+                    nY);
+
+results.notes = ["First dimension indexes the ith iteration over Class A subsets";...
+                 "Second dimension indexes the jth iteration over Class B subsets";...
+                 "Third dimension indexes the lth level of the multilevel filter, the lth subspace dimension, or lth machine";...
+                 "Fourth Dimension indexes the Class Label (A = 1, B = 0)";
+                 "Fifth Dimension indexes the raw  SVM output";
+                 "Sixth Dimension indexes the predicted class"];
+
+
+
+
+end

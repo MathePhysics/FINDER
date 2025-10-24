@@ -1,0 +1,65 @@
+function [Datas, results] = ConstructOptimalBasis(Datas, parameters, methods, results, tag)
+
+
+%% Construct Optimal Subspace
+ResidA = Datas.A.eigenvectors(:, end - results.current_ima + 1:end);
+ZMBT = Datas.B.Training -  mean(Datas.B.Training,2);
+%NB = size(Datas.B.Training, 2);
+switch tag
+    case 'Sep', sigma = 'smallest';
+    case 'Close', sigma = 'largest';
+end
+
+for wss = ["singularMatrix", "nearlySingularMatrix", "svds:smallRelativeTolerance"]
+ws = sprintf("MATLAB:%s", wss);
+warning('off', ws);
+end
+%[evec, ~, ~] = svds( (NB - 1)^-0.5 * ResidA' * ZMBT, results.current_imres, sigma);
+[evec, ~, ~] = svds(ResidA' * ZMBT, results.current_imres, sigma);
+OptimalSubspace = ResidA * evec;
+
+
+
+
+
+%% Apply Filter To Data
+NB = size(Datas.B.Training,2);
+NA  = size(Datas.A.Training,2);    
+
+% Form training data
+% X_Train_A = OptimalSubspace' * Datas.A.Training;
+% X_Train_B = OptimalSubspace' * Datas.B.Training;
+X_Train = OptimalSubspace * (OptimalSubspace' * [Datas.A.Training , Datas.B.Training]);
+Datas.X_Train = X_Train';%[X_Train_A' ; X_Train_B'];
+Datas.y_Train = [ones(NA) , zeros(1, NB)];
+ 
+% Form testing data
+Datas.X_Test_B = OptimalSubspace * (OptimalSubspace' * Datas.B.Testing);  
+Datas.X_Test_A  = OptimalSubspace * (OptimalSubspace' * Datas.A.Testing);
+
+%% Determine Optimality of transformation
+% fprintf('%s Means Assumed\n\n', tag)
+% 
+% %Orthonormality Check
+% orthchk1 = norm(ResidA' * ResidA - eye(results.current_ima), 'fro');
+% orthchk2 = norm( OptimalSubspace' * OptimalSubspace - eye(results.current_imres), 'fro');
+% fprintf('Orthonormality Check: %0.3e \n', orthchk1);
+% fprintf('Orthonormality Check: %0.3e \n', orthchk2);
+% 
+% %Optimality Check
+% r = norm(mean(X_Train_B, 2)); %= distance between class means
+% numA = mean(sum(X_Train_A.^2,1));
+% numB = mean( sum((OptimalSubspace' * ZMBT).^2, 1) );
+% ErrorBoundFunction = @(rA) numA / rA^2 + numB / (r - rA)^2 ;
+% switch tag
+%     case 'Sep'
+%     ErrorBound = fminbnd(ErrorBoundFunction,0,r);
+%     fprintf('Type I + Type II error = %0.3e \n\n', ErrorBound);
+%     
+%     case 'Close'
+%     ErrorBound = numB / numA;
+%     fprintf('Ratio of Class B concentration to Class A: %0.3e \n\n', ErrorBound);
+% end
+
+
+end

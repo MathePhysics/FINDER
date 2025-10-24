@@ -71,7 +71,8 @@ for iBalance = 1:length(Balances)
         %disp(xlabeltext.Position);
         %xlabeltext.Position = xlabelPos + [0,0.02,0];
         %xlabeltext.HorizontalAlignment = 'center';
-        ylabel('Error Rate', AxlabelArgs{:});
+        %ylabel('Error Rate', AxlabelArgs{:});
+        ylabel('Refinement', AxlabelArgs{:});
        
         legstr = {};
         

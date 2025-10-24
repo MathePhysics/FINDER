@@ -1,0 +1,73 @@
+X = what; 
+X = X.mat;
+
+isuntransformed = cellfun(@(x) contains(x, 'Untransformed-NoPar'), X);
+Untransformed = X(isuntransformed); 
+
+istransformed = cellfun(@(x) contains(x, 'Transformed-NoPar'), X);
+Transformed = X(istransformed);
+
+
+legstru = {};
+for i = 1:length(Untransformed)
+    Y = load(Untransformed{i});
+    accuracy = Y.results.multilevel.accuracy;
+    precision = Y.results.multilevel.precision;
+    
+    Z = func2str(Y.results.transform);
+    Z = Z(5:end);
+    legstru = {legstru{:}, Z};
+
+    subplot(2,2,1)
+    hold on
+    plot(accuracy,'LineWidth',2)
+
+    subplot(2,2,2)
+    hold on
+    plot(precision,'LineWidth',2)
+end
+
+legstrt = {};
+for i = 1:length(Transformed)
+    Y = load(Transformed{i});
+    accuracy = Y.results.multilevel.accuracy;
+    precision = Y.results.multilevel.precision;
+
+    Z = func2str(results.transform);
+    Z = Z(5:end);
+    legstrt = {legstrt{:}, Z};
+
+
+    subplot(2,2,3)
+    hold on
+    plot(accuracy,'LineWidth',2)
+
+    subplot(2,2,4)
+    hold on
+    plot(precision,'LineWidth',2)
+end
+
+%Add labels
+for i = 1:4
+    subplot(2,2,i)
+    xlim([1,8])
+    ylim([0,1])
+    xlabel('Level')
+
+    if mod(i,2) == 1
+        ylabel('Accuracy')
+    elseif mod(i,2) == 0 
+        ylabel('Precision')
+    end
+
+    if i <= 2
+        title('Untransformed')
+        legend(legstru, 'westoutside');
+    elseif i > 2 
+        title('Transformed')
+        legend(legstrt, 'westoutside');
+    end
+
+
+end
+

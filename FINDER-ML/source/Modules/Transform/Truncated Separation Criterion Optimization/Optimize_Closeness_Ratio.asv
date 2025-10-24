@@ -1,0 +1,114 @@
+function [closeness_ratios, CR, MA, MB] = Optimize_Closeness_Ratio(eigendata)
+
+% objpath = fullfile(pwd, 'Tan_data-2', 'Tan_data-2', tag, filename);
+% objpath = [objpath '.mat'];
+% d = load(objpath);
+% d = d.d;
+
+RA = length(eigendata.EvalA); RB = length(eigendata.EvalB);
+
+assert(size(eigendata.EvecA,2) == RA & size(eigendata.EvecB,2) == RB,...
+    'Must have same number of eigenvectors as eigenvalues');
+
+assert(size(eigendata.EvecA,1) == size(eigendata.EvecB,1), ...
+    'Eigenvectors must have the same length');
+
+D = (eigendata.EvecA' * eigendata.EvecB).^2;
+
+%f = figure();
+
+V1 = D * eigendata.EvalB(:) ; 
+V2 = D' * eigendata.EvalA(:) ;
+
+S1 = cumsum(V1) ./ cumsum( eigendata.EvalA(:) ) ; 
+S2 = cumsum(V2) ./ cumsum( eigendata.EvalB(:) ) ;
+
+CR = S1(:) + S2(:)' ; 
+
+
+
+%SAB = eigendata.EvalB(:)' .* D; SBA = eigendata.EvalA(:) .* D;
+
+%fprintf('\n\n Weighted Dot Products: %0.5g \n', norm(SAB + SBA))
+
+% SAB = cumsum(SAB,1); SBA = cumsum(SBA,1);
+% SAB = cumsum(SAB,2); SBA = cumsum(SBA,2);
+% 
+% %fprintf('Cumulatives: %0.5g \n', norm(SAB + SBA))
+% 
+% SAB = SAB ./ cumsum(eigendata.EvalA(:)); SBA = SBA ./ cumsum(eigendata.EvalB(:)');
+% 
+% 
+% closeness_ratios = SAB + SBA;
+
+[CR, imin] = min(closeness_ratios(:));
+[MA,MB] = ind2sub(size(closeness_ratios), imin);
+%fprintf('Closeness ratios: %0.5g \n\n', norm(SAB + SBA))
+
+
+
+
+% DA = (eigendata.EvecA' * eigendata.EvecB).^2; DB = DA';
+% DA = cumsum(DA,1); DB = cumsum(DB,1);
+% 
+% UA = repmat(eigendata.EvalA(:),1,RB); UA = triu(UA);
+% UB = repmat(eigendata.EvalB(:),1,RA); UB = triu(UB);
+% 
+% SAB = DA * UB ./ cumsum(eigendata.EvalA(:)); 
+% SBA = DB * UA ./ cumsum(eigendata.EvalB(:));
+% 
+
+
+%%
+
+
+%%
+%closeness_ratios = [];
+% ideal_MA = 0;
+% ideal_MB = 0;
+% current_best_CR = Inf;
+
+% Wk = eigendata.EvalB / sum(eigendata.EvalA); Wj = eigendata.EvalA(:) / sum(eigendata.EvalB);
+% W = Wk + Wj;
+% assert(size(W,1) == RA & size(W,2) == RB);
+% 
+% 
+% for MA = 1:RA
+% 
+% 
+%     for MB = 1:RB
+% 
+%         Weights = W(1:MA , MB);
+%         Sigma_k = eigendata.EvalA(:,1:MA) * Weights(:).* Eval(:,1:MA)' ;
+% 
+%         % dot_products = (eigendata.EvecA(:,1:MA)' * eigendata.EvecB(:,1:MB) ).^2;
+%         % 
+%         % traceA = sum(eigendata.EvalA(1:MA) ); traceB = sum(eigendata.EvalB(1:MB) );
+%         % 
+%         % LA = eigendata.EvalA(:) / traceB ; LB = eigendata.EvalB(:) / traceA;
+%         % 
+%         % SAB = sum(dot_products' * LA(1:MA) );
+%         % SBA = sum(dot_products * LB(1:MB) );
+%         % 
+%         % closeness_ratio = SAB + SBA;
+%         % closeness_ratios(MA,MB) = closeness_ratio;
+%         % %closeness_ratios = [closeness_ratios, closeness_ratio];
+% 
+% 
+% 
+% 
+% %         if closeness_ratio < current_best_CR 
+% %             current_best_CR = closeness_ratio;
+% %             ideal_MA = MA; ideal_MB = MB;
+% %         end
+% 
+%     end
+% en
+
+%fprintf('Closeness Ratio using all eigendata: %0.4G \n', closeness_ratios(end))
+%CR = closeness_ratios(end);
+
+
+
+end
+

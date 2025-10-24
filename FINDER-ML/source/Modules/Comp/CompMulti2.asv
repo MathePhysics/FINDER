@@ -1,0 +1,31 @@
+function CompMulti2(Datas, parameters, methods, results)
+
+if isempty(parameters.multileve.l)
+    parameters.multilevel.l = parameters.Data.A;
+end
+
+results = repmat(results, [parameters.Data.A, parameters.Data.A]);
+
+switch parameters.parallel.on
+    case 1
+        
+        parfor  ima = 1:parameters.Data.A
+            
+            for imres = 1:ima
+                results(ima, imres).current_ima = 
+                results(ima, imres) = methods.Multi.CompMulti(Datas, parameters, methods, results(ima, imres) );
+
+            end
+        end
+
+    case 0
+
+        for ima = 1:parameters.Data.A
+            for imres = 1:ima
+
+                results(ima, imres) = methods.Multi.CompMulti(Datas, parameters, methods, results(ima, imres) );
+
+            end
+        end
+
+end

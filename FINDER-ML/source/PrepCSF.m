@@ -1,5 +1,5 @@
 % Load QC dataset and filter for visit code 'm12'
-qc = readtable('/restricted/projectnb/sctad/ADNI_2024/CruchagaLab_CSF_SOMAscan7k_Protein_matrix_postQC_20230620.csv');
+qc = readtable(fullfile('..','data', 'CruchagaLab_CSF_SOMAscan7k_Protein_matrix_postQC_20230620.csv'));
 %qc = readtable('/yourfolder/CruchagaLab_CSF_SOMAscan7k_Protein_matrix_postQC_20230620.csv');
 qc_bl = qc(strcmp(qc.VISCODE2, 'bl'), :);  % Keep only rows where Visit_Code is 'm12'
 
@@ -12,7 +12,8 @@ qc_bl = qc_bl(:, ~all(ismissing(qc_bl), 1));
 
 
 % Load phenotype data and filter for visit code 'm12'
-phenotype = readtable('/restricted/projectnb/sctad/ADNI/phenotype/adni_phenotype.csv');
+phenotype = readtable(fullfile('..','data', 'adni_phenotype.csv')); 
+%/restricted/projectnb/sctad/ADNI/phenotype/adni_phenotype.csv');
 %phenotype = readtable('/yourfolder/adni_phenotype_bl.csv');
 phenotype_bl = phenotype(strcmp(phenotype.VISCODE, 'bl'), :);  % Keep only rows where VISCODE is 'm12'
 
@@ -70,7 +71,7 @@ generate_three_datasets(df_imputed);
 % -------- Function definition --------
 function generate_three_datasets(data)
     % Output directory
-    outdir = '../data/CSF_data/';
+    outdir = fullfile('..','data');
     
     % Ensure directory exists
     if ~exist(outdir, 'dir')

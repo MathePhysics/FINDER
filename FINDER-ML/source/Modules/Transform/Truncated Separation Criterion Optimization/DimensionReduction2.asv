@@ -1,0 +1,21 @@
+function eigendata = DimensionReduction2(eigendata)%, parameters)
+%Chooses optimal truncation by minimizing separation criterion versus
+%maximizing mean total explained variance 
+
+[SC, ~, ~, ~] = Optimize_Closeness_Ratio(eigendata, parameters);
+SC = -fliplr(triu(fliplr(SC)));
+[maxSC, imin] = max(SC(:));
+[NA,NB] = ind2sub(size(SC), imin);
+
+%Update eigendata structure
+eigendata.EvalA(NA+1:end) = []; eigendata.EvalB(NB+1:end) = [];
+
+eigendata.EvecAperp = [eigendata.EvecA(:,NA + 1:end), eigendata.EvecAperp]; 
+eigendata.EvecA(:,NA+1:end) = [];
+
+eigendata.EvecBperp = [eigendata.EvecB(:,NB + 1:end), eigendata.EvecBperp]; 
+eigendata.EvecB(:,NB+1:end) = [];
+
+eigendata.RankA = NA; eigendata.RankB = NB; 
+
+end

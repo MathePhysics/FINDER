@@ -1,12 +1,22 @@
 function parameters = filefunc2(parameters, methods)
 
+
+%% Remove 'origA', 'origB', 'Training', 'Testing' fields from parameters (they're huge!)
+bigFields = {'origA', 'origB', 'Training', 'Testing', 'AData', 'BData'};
+for i = 1:length(bigFields)
+    if isfield(parameters, bigFields{i})
+    parameters = rmfield(parameters, bigFields{i});
+    end
+end
+
+
 %% Tag containing validation type 
 
 switch parameters.data.validationType
     case 'Synthetic'
         assert(parameters.parallel.on == 0, 'Make sure parameters.parallel.on is set to ''0'' if parameters.data.generealization is set to ''1''')
 
-       
+
         split_tag = sprintf('%d_TrainingA_%d_TrainingB_%d_Testing', ...
                         parameters.synthetic.Ars(parameters.data.currentiter), ...
                         parameters.synthetic.Brs(parameters.data.currentiter), ...
@@ -20,14 +30,14 @@ switch parameters.data.validationType
                 error('parameters.synthetic.functionTransform must be id or a real number');
             end
 
-            %Folder = sprintf('%s-%s',split_tag, str);
+        split_tag = [split_tag, filesep, str];
 
 
 
     case 'Kfold'
 
-        split_tag = sprintf('Leave %d out', parameters.Kfold);
-        str = [];
+        split_tag = sprintf('Leave_%d_out', parameters.Kfold);
+       
 
     case 'Cross'
 
@@ -36,38 +46,41 @@ switch parameters.data.validationType
                             parameters.data.B - parameters.cross.NTestB,...
                             parameters.cross.NTestA,...
                             parameters.cross.NTestB);
-        str = [];
+
 
        
 end
 
 %% Tag containing Machine
-kern_tag = parameters.svm.kernal;
+switch parameters.svm.kernal
+    case true, kern_tag = 'Radial';
+    case false, kern_tag = 'Linear';
+end
 
 %% Tag containing filtering method (ML, None, or Class B Adapted)
-
 switch parameters.multilevel.svmonly
     case 0
         switch parameters.multilevel.nested
-            case 0, nest_tag = 'Unnested';
-            case 1, nest_tag = 'Inner_Nesting';
-            case 2, nest_tag = 'Outer_Nesting';
+            case 0, SFT_tag = 'MLS-Unnested';
+            case 1, SFT_tag = 'MLS-Inner-Nesting';
+            case 2, SFT_tag = 'MLS-Outer-Nesting';
         end
-        nest_fun = @(X) sprintf('%s-Levels-0-%d', X, parameters.multilevel.l);
-        nest_tag = nest_fun(nest_tag);
-        eigen_tag = sprintf('Eigen-%d', parameters.snapshots.k1);
     case 1
-        nest_tag = 'Unfiltered';
-        eigen_tag = [];
+        SFT_tag = 'Benchmark'; 
+        kern_tag = '';
     case 2
-        nest_tag = sprintf('ACA-%s-%d-%d',...
-            upper(parameters.multilevel.eigentag(1)),...
-            min(parameters.multilevel.Mres),...
-            max(parameters.multilevel.Mres));        
-        eigen_tag = sprintf('Eigen-%d', parameters.snapshots.k1);
+        SFT_tag = sprintf('ACA-%s', upper(parameters.multilevel.eigentag(1)));            
 end
-nest_tag = sprintf('%s-%s', nest_tag, eigen_tag);
 
+%% Tag containing Truncation parameter
+if ismember(parameters.multilevel.svmonly, [0,2])
+    eigen_tag = sprintf('Eigen-%d', parameters.snapshots.k1);
+else 
+    eigen_tag = '';
+end
+
+
+%% Normalization Tag
 switch parameters.data.normalize
     case 0, norm_tag = 'Unnormalized';
     case 1, norm_tag = 'Normalized';
@@ -81,28 +94,26 @@ end
 
 
 %% Results Folder
-MOEfh = func2str(methods.Multi2.ChooseTruncations);
-MOEiter = regexp( MOEfh, '\d');
-MOEfldr = MOEfh(MOEiter);
+switch parameters.multilevel.chooseTrunc
+    case false
+        MOEfldr = "Manual_Hyperparameter_Selection";
+    case true
+        MOEfldr = func2str(methods.Multi2.ChooseTruncations);
+        MOEfldr = replace(MOEfldr, '@', '');
+end
+
+%% Create file name for results
+dataname_string = {parameters.data.label, SFT_tag, kern_tag, eigen_tag, norm_tag};
+dataname_string(cellfun(@isempty, dataname_string)) = [];
+parameters.dataname = strjoin(dataname_string, '-');
+parameters.dataname = [parameters.dataname '.mat'];
 
 
-parameters.dataname = sprintf('%s-%s-%s-%s-%s-Results.mat',...
-    parameters.data.label,...
-    nest_tag,...
-    kern_tag,...
-    ...transform_tag,...
-    ...par_tag,...%val_tag,...
-    norm_tag);
-
-parameters.datafolder = fullfile('..', 'results', MOEfldr, parameters.data.validationType, parameters.data.label, split_tag, str, balanced);
+%% Create path for results
+parameters.datafolder = fullfile('..', 'results', MOEfldr, parameters.data.validationType, parameters.data.label, split_tag, balanced);
 
 if ~isfolder(parameters.datafolder), mkdir(parameters.datafolder), end
 
-for t = 'AB'
-    field = ['orig' t];
-    if isfield(parameters, field)
-        parameters = rmfield(parameters, field);
-    end
-end
+
 
 end

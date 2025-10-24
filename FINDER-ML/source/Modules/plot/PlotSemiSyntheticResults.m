@@ -1,0 +1,155 @@
+function PlotSemiSyntheticResults
+
+%% Set plot parameters
+%% Set Plot Parameters
+YTicks = 0.7:0.05:1;
+YTickLabels = num2cell(YTicks); YTickLabels(2:2:end) = {''};
+axNames = {'YLim', 'YGrid', 'fontsize', 'YTickMode', 'ytick','YTickLabels'};
+axValues = {[0.5, 1], 'on', 11, 'manual', YTicks, YTickLabels};
+LineArgs = {'LineWidth', 2, 'Marker', 's', 'MarkerSize', 10, 'MarkerFaceColor', 'auto'};
+AxlabelArgs = {'Interpreter', 'latex', 'FontSize', 13};
+
+Balances = ["Balanced", "Unbalanced"];
+Accs = ["AUC", "accuracy"];
+capitalize = @(str) upper(extractBefore(str,2)) + extractAfter(str,1);
+
+LineColors = [0.12, 0.21, 1;
+             1, 0.04, 0.12;
+             0.25, 0.25, 0.25];
+
+
+
+%% Define information to iterate through
+Datasets = ["GCM", "Plasma_M12_ADCN", "Plasma_M12_ADLMCI",...
+            "Plasma_M12_CNLMCI", "newAD",...
+            "SOMAscan7k_KNNimputed_CN_EMCI", "SOMAscan7k_KNNimputed_AD_CN"];  
+
+Aliases = ["GCM", "Plasma (AD vs. CN)", "Plasma (AD vs. LMCI)",...
+            "Plasma (CN vs. LMCI)", "newAD",...
+            "CSF (CN vs. EMCI)", "CSF (AD vs. CN)"];
+
+Acc = ["AUC", "accuracy"];
+
+Balances = ["Balanced", "Unbalanced"];
+
+Algos = [0,1,2];
+
+%Transforms = {'id', 10, 20, 30, 40};
+Transforms = [{'id'}, arrayfun(@(x) sprintf('sin(%dx)', x), 10:10:40, 'UniformOutput', false)];
+
+TrainingPattern = regexpPattern('\d*_TrainingA_\d*_TrainingB_\d*_Testing');
+
+for iDS = 1:length(Datasets)
+
+%% Load in all results for each Data Set
+    Dataset = Datasets(iDS);
+
+    DSpath = fullfile('..', 'results',...
+        'Manual_Hyperparameter_Selection',...
+        'Synthetic', '**', '*.mat');
+
+    DSfiles = dir(DSpath); 
+    DSfiles(matches({DSfiles.name}, ['.', '..'])) = [];
+    DS1 = DSfiles(contains({DSfiles.name}, Dataset));
+    %allParameters = arrayfun(@(x) load(fullfile(x.folder, x.name), 'parameters'), DSfiles);
+    %allResults = arrayfun(@(x) load(fullfile(x.folder, x.name), 'results'), DSfiles);
+    %DSfiles = arrayfun(@(x, y) setfield(x, 'parameters', y), DSfiles, allParameters);
+    %DSfiles = arrayfun(@(x, y) setfield(x, 'results', y), DSfiles, allResults);
+
+%% Identify the size of the Training and Testing Cohort
+    TrainingTestingTags = arrayfun(@(x) extract(x.folder, TrainingPattern),...
+                             DS1); %, 'UniformOutput', false);
+
+    uniqueTTTags = unique(TrainingTestingTags);
+
+    for iTT = 1:length(uniqueTTTags)
+        DS2 = DS1(strcmp(TrainingTestingTags, uniqueTTTags{iTT}));
+
+    for iTransform = 1:length(Transforms)
+
+        Transform = Transforms{iTransform};
+        DS3 = DS2(contains({DS2.folder}, Transform));
+
+    for iBalance = 1:length(Balances)
+        isBalanced = Balances(iBalance) == "Balanced";
+         if iAlgos == 1
+            DS4 = DS3;
+        else
+            DS4 = DS3(contains({DS3.folder}, Balances(iBalance)));
+        end
+
+        
+
+   for iAcc = 1:length(Acc)
+        %
+        % f = figure('Units', 'Normalized', 'Position', [0,0,1,1]);
+    
+    legstr = {};
+    for iAlgos = Algos
+
+        DS3 = DS2(arrayfun(@(x) x.parameters.multilevel.svmonly == iAlgos, DS2));
+
+    
+       
+
+        
+        DS5 = DS4(arrayfun(@(x) isequal(x.parameters.synthetic.functionTransform,...
+            Transforms{iTransform}), DS4));
+
+    
+        %% Extract best performing result
+
+        [~, ibest] = max(arrayfun(@(x) max(x.results.(Acc(iAcc))), DS5));
+        DS6 = DS5(ibest);
+
+        assert(length(DS6 == 1), 'Failed to produce exactly one result structure')
+
+        switch DS6.parameters.multilevel.svmonly
+            case 0 
+               [bestResult, iBestResult] = max(DS6.results.(Acc(iAcc)));
+               regime = DS6.parameters.misc.MachineList(iBestResult);
+               XData = [min(DS6.parameters.multilevel.Mres),...
+                   max(DS6.parameters.multilevel.Mres)];
+               YData = bestResult*[1,1];
+            case 1
+                switch DS6.parameters.svm.kernal
+                    case 0, kernel = 'Linear'; case 1, kernel = 'Radial';
+                end
+               regime = sprintf('MLS-%s', kernel);
+               XData = DS6.parameters.multilevel.Mres;
+               YData = DS6.results.(Acc(iAcc));
+            case 2
+                switch DS6.parameters.svm.kernal
+                    case 0, kernel = 'Linear'; case 1, kernel = 'Radial';
+                end
+                regime = sprintf('ACA-%s-%s',...
+                    upper(DS6.parameters.multilevel.eigentag(1)),...
+                    kernel);
+               XData = DS6.parameters.multilevel.Mres;
+               YData = DS6.results.(Acc(iAcc));
+        end
+        legstr = [legstr, {regime}];
+
+        %% Plot the result
+        iplot = sub2ind([length(uniqueTTTags), length(Transforms)],...
+                        iTT, iTransform);
+        ax = subplot(iplot);
+        cellfun(@(x,y) set(ax,x,y), axNames, axValues);
+
+        LC = LineColors(DS6.parameters.multilevel.svmonly + 1, :);
+        plot(ax, XData, YData, LineArgs{:}, 'Color', LC);
+        ylabel(capitalize(Acc), AxlabelArgs{:});
+        xlabel('$M_{res}$', AxlabelArgs{:}); 
+
+        
+    end
+    legend(legstr,'Location', 'best');
+
+    end
+    end
+    end
+end
+
+%
+
+end

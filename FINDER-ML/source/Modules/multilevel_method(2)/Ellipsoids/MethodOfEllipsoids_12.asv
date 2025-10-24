@@ -1,0 +1,238 @@
+function parameters = MethodOfEllipsoids_12(Datas, parameters, methods)
+
+%x = ismember(parameters.multilevel.svmonly, [0,2]);
+%x(2) = isempty(parameters.snapshots.k1);
+%if ~x, return, end
+
+if ~parameters.multilevel.chooseTrunc, return, end
+
+
+%% Prep data
+for C = 'AB'
+    parameters.data.(C) = size(Datas.rawdata.([C 'Data']), 2);
+end
+Datas = InScriptPrepData(Datas, parameters, methods);
+
+
+%Get a list of truncation parameters for class A
+Truncations = GetTruncations(parameters);
+
+%Initialize Array of wrongly misplaced points
+Record = Inf;
+P = parameters.data.numofgene;
+M = length(Truncations);
+N = parameters.data.numofgene - min(Truncations);
+WrongPoints = nan(M,N);
+SepCrit = nan(M,N);
+
+
+%Construct Principal Eigenspace of Class A
+NA = size(Datas.A.Training,2);
+ZA = 1/sqrt(NA - 1)*Datas.A.Training;
+[PhiA,~] = mysvd(ZA, max(Truncations));
+PhiAPerp = mynull(PhiA');
+U = fliplr([PhiA, PhiAPerp]);
+
+NB = size(Datas.B.Training,2);
+ZB = 1/sqrt(NB - 1) * (Datas.B.Training - mean(Datas.B.Training,2));
+
+%parfor ima = Truncations
+for ima = Truncations
+
+    fprintf('Testing Truncation %d of %d \n', ima, max(Truncations));
+
+    UA = PhiA(:,1:ima); %Get basis for principal eigenspace
+    G = ZB * (ZB' - (ZB'*UA)*UA'); %Transform Class B Covariance matrix 
+    Mres = P - ima; rankG = min([NB-1, Mres]); %Estimate the rank of G
+    [T1,~] = eigs(G,rankG); %Basis for Ker(G)_perp
+    G2 = T1' - (T1'*UA)*UA'; T2 = null(G2); %Basis for Ker(G)
+    T = [T1 , T2]; %Basis for R^P
+    if ~isreal(T), keyboard, end
+    if strcmp(parameters.multilevel.eigentag, 'smallest'), T = fliplr(T); end
+    S = T - (T*UA)*UA';
+    Snorms = sum(S.^2,1);
+    S = S ./ sqrt(Snorms);
+
+%     Mres = P-ima;
+%     UA = U(:,1:Mres);
+%     T = mysvd(UA' * ZB);
+%     Tperp = mynull(T');
+
+
+   
+    
+
+    W = nan([1,N]);
+    parfor imres = 1:Mres
+    %for imres = 1:Mres
+        Si = S(:,1:imres);
+        W(imres) = IdentifyMisplaced(Si, Datas, parameters);
+    end
+
+    WrongPoints(ima,:) = W;
+
+    %if any(W == 0), WrongPoints = WrongPoints(1:ima,:); break, end
+
+end
+fprintf('\n');
+
+[parameters, iMres] = plotHeatMap1(WrongPoints, parameters);
+
+
+
+end
+
+%==========================================================================
+
+function Datas = InScriptPrepData(Datas, parameters, methods)
+
+%nTest = floor(min(parameters.data.A, parameters.data.B)/10);
+nTest = parameters.Kfold;
+if isempty(nTest)
+    m = min(parameters.data.A, parameters.data.B);
+    nTest = floor(m/10);
+end
+
+Datas.A.Training = Datas.rawdata.AData(:,1:end-nTest);
+Datas.B.Training = Datas.rawdata.BData(:,1:end-nTest);
+Datas.A.Testing = Datas.rawdata.AData(:,end-nTest+1:end);
+Datas.B.Testing = Datas.rawdata.BData(:,end-nTest+1:end);
+
+NA = size(Datas.A.Training,2);
+NB = size(Datas.B.Training,2);
+
+
+iData = 1:NA;
+if parameters.multilevel.splitTraining
+    %nTesting = NB;
+    iCov = iData(iData <= NB);
+else
+    iCov = iData;
+end
+
+meanXA = mean(Datas.A.Training(:,iCov), 2);
+for i = 'AB', for j = ["Training", "Testing"]
+        Datas.(i).(j) = Datas.(i).(j) - meanXA;
+end, end
+
+Datas.A.Training = Datas.A.Training - meanXA;
+Datas.B.Training = Datas.B.Training - meanXA ; 
+Datas.A.Testing = Datas.A.Testing - meanXA;
+Datas.B.Testing = Datas.B.Testing - meanXA;
+end
+% ========================================================================
+
+%==========================================================================
+function Truncations = GetTruncations(parameters)
+
+if ~isempty(parameters.snapshots.k1)
+    Truncations = parameters.snapshots.k1;
+    return
+end
+
+%Get maximum truncation 
+switch parameters.multilevel.splitTraining
+    case true
+        minTrainingA = parameters.data.A - parameters.Kfold;
+        minTestingB = max(parameters.Kfold, mod(parameters.data.B, parameters.Kfold) );
+        maxTrainingB = parameters.data.B - minTestingB;
+        maxTrunc = minTrainingA - maxTrainingB;
+        maxTrunc = min(parameters.data.numofgene-1, maxTrunc);
+    case false
+        maxTrunc = parameters.data.numofgene - 1;
+end
+
+%Get list of truncation parameters
+Truncations = 1:maxTrunc;
+
+end 
+%==========================================================================
+
+%==========================================================================
+function N = mynull(X)
+
+x = size(X);
+if x(2) >= x(1), return, end
+N = null(X);
+end
+%==========================================================================
+
+%==========================================================================
+function wrong = IdentifyMisplaced(Si, Datas, parameters)
+
+        NA = size(Datas.A.Training,2); NB = size(Datas.B.Training,2);
+        NA = 1/sqrt(NA - 1); NB = 1/sqrt(NB - 1);
+        MA = mean(Datas.A.Training,2); MB = mean(Datas.B.Training,2);
+
+        XA = Si' * NA* (Datas.A.Training - MA); XB = Si' * NB * (Datas.B.Training - MB);
+        MA = mean(XA,2); MB = mean(XB,2);
+        
+        
+
+        [uA, sA] = mysvd(XA); [uB, sB] = mysvd(XB);
+
+        KAinv = ((sA.^(-0.5)) .* uA'); KBinv = ((sB.^(-0.5)) .* uB'); 
+
+        xA = KAinv * (XA - MA); xB = KBinv * (XB - MB);
+        %mA = mean(xA,2); mB = mean(xA,2);
+
+        rA = sum( xA.^2,1); rB = sum( xB.^2,1);
+
+        if ~isreal(rA), keyboard, end  
+        if ~isreal(rB), keyboard, end
+
+        radA = quantile(rA, parameters.multilevel.concentration);
+        radB = quantile(rB, parameters.multilevel.concentration);
+
+        BinA = KAinv * (XB - MA); AinB = KBinv * (XA - MB);
+
+        wrongA = sum(BinA.^2,1) < radA; wrongB = sum(AinB.^2,1) < radB;
+
+        wrong = sum(wrongA) + sum(wrongB);
+
+       % myscatter(xA, xB)
+
+end
+
+function myscatter(xA, xB)
+    t = size(xA,1) == 2 && size(xB,1) == 2;
+    if ~t, return, end
+    
+    
+    mysc = @(X,C) scatter(X(1,:), X(2,:), 10, C, 'filled');
+
+    mysc(xA, 'r');
+    hold on 
+    mysc(xB, 'b');
+
+    
+
+end
+
+function [parameters, iMres] = plotHeatMap1(Data, parameters)
+%Plot Heat Map corresponding to the number of misplaced points for each MA,
+%Mres
+figure('Name', 'In Wrong Ellipsoid'), 
+h = imagesc(Data); 
+J = jet; %J(1,:) = [1,1,1]; J(end,:) = [0,0,0];
+colormap(J), colorbar
+xlabel('Mres'), ylabel('MA')
+h.AlphaData = ~isnan(Data);
+
+
+%Obtain Best Truncation MA 
+[Record, imin] = min(Data', [], 'all');
+[~, BestMA] = ind2sub(size(Data'), imin);
+title(sprintf('MA = %d, Misclassified = %d', BestMA, Record))
+
+iMres = Data(BestMA,:) == Record;
+
+if isempty(parameters.snapshots.k1)
+    parameters.snapshots.k1 = BestMA;
+else
+    return
+end
+
+
+
+end

@@ -1,0 +1,33 @@
+function results = CompMulti2Kfold(Datas, parameters, methods, results)
+
+for machine = ["Sep", "Close"]
+
+    machine = convertStringsToChars(machine);
+    array = results.([machine 'MeansArray']);
+    FilterMethod = methods.Multi2.([machine 'Filter']);
+    
+    for i = parameters.data.NAvals
+            parameters.data.i = i; 
+            tic; t1 = toc;
+            
+            for j = parameters.data.NBvals
+    
+                parameters.data.j = j; 
+            
+                Datas = methods.all.prepdata(Datas, parameters);
+                Datas = methods.transform.tree(Datas, parameters, methods);
+
+                [Datas, results] = FilterMethod(Datas, parameters, methods, results, machine);
+                Datas = methods.SVMonly.Prep(Datas);
+                parameters = methods.SVMonly.fitSVM(Datas, parameters, methods);
+                array(i,j,:,:) = methods.all.predict(Datas, parameters, methods, results);
+    
+    
+            end
+    
+    end
+
+    results.([machine 'Array']) = array;
+
+
+end

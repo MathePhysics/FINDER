@@ -1,16 +1,17 @@
 function [parameters] = InitializeParameters_kNN_ADNI()
 
 %% Data parameters
-parameters.data.path = '/restricted/projectnb/sctad/Audrey/SOMAscan7k_KNNimputed_formatted_data/'; %'/restricted/projectnb/sctad/Codes/Yumeng/'; %
-parameters.data.label = 'SOMAscan7k_KNNimputed_AD_CN'; %'SOMAscan7k_KNNimputed_CN_EMCI'; %'newAD'; %'ionosphere'; %'2024_CNEMCI_lasso_45'; %'Plasma_M12_ADLMCI'; %'GCM'; %
+parameters.data.path = '/restricted/projectnb/sctad/Audrey/SOMAscan7k_KNNimputed_formatted_data/'; %'/restricted/projectnb/sctad/Codes/Yumeng/'; %'/restricted/projectnb/sctad/Audrey/ADNI_2024_Audrey/CSF_dataset/'; %
+parameters.data.label = 'SOMAscan7k_KNNimputed_AD_CN'; %'newAD'; %'ionosphere'; %'2024_CNEMCI_lasso_45'; %'Plasma_M12_ADLMCI'; %'GCM'; %'CSF_PET_Classification'; %
 parameters.data.name = [parameters.data.label, '.txt'];
 parameters.data.numofgene = []; % Set to empty array [] to initialize as latent data dimension
-parameters.data.normalize = 1; % if 1 then standarized
+parameters.data.normalize = 0; % if 1 then standarized
 parameters.data.validationType = 'Kfold'; %One of 'Kfold', 'Cross', or 'Synthetic'
+parameters.data.randomize = 'false';
 
 %% Cross Validation Parameters
-parameters.cross.NTestA = 20;
-parameters.cross.NTestB = 20;
+parameters.cross.NTestA = 1;
+parameters.cross.NTestB = 1;
 
 %% K-fold parameters
 parameters.Kfold = 1; %If parameters.data.generealization is set to 1,
@@ -33,7 +34,9 @@ parameters.multilevel.svmonly = 2; % if 1 then SVM only, if 0 then multilevel, i
 parameters.multilevel.splitTraining = false; %if True, then Training A data is split into ML-filter subset and SVM training subset
 parameters.multilevel.eigentag = 'largest'; %if 'largest', uses principal eigenspace, if 'smallest' uses terminal eigenspace
 parameters.multilevel.concentration = 1;
-parameters.multilevel.Mres = 'MLS';
+%parameters.multilevel.Mres = 'MLS';
+parameters.multilevel.Mres_manual = 700:700:6998;
+parameters.multilevel.Mres_auto = 'MLS';
 
 %% Baseline performance parameters
 parameters.misc.MachineList = ["SVM_Linear", "SVM_Radial", "LogitBoost", "RUSBoost", "Bag"];

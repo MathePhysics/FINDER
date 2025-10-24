@@ -1,8 +1,8 @@
 function plotAUCs2
 close all
 
-DataSets = ["SOMAscan7k_KNNimputed_AD_CN"];
-DataAliases = ["CSF"];
+DataSets = ["CSF_PET_Classification"];
+DataAliases = ["CSF_PET"];
 resultFolder = '18';
 CrossVal = 'Kfold';
 

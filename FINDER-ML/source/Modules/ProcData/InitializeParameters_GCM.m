@@ -7,10 +7,11 @@ parameters.data.name = [parameters.data.label, '.txt'];
 parameters.data.numofgene = []; % Set to empty array [] to initialize as latent data dimension
 parameters.data.normalize = 1; % if 1 then standarized
 parameters.data.validationType = 'Kfold'; %One of 'Kfold', 'Cross', or 'Synthetic'
+parameters.data.randomize = false;
 
 %% Cross Validation Parameters
-parameters.cross.NTestA = [];
-parameters.cross.NTestB = [];
+parameters.cross.NTestA = 15;
+parameters.cross.NTestB = 15;
 
 
 %% K-fold parameters
@@ -19,7 +20,7 @@ parameters.Kfold = 1; %If parameters.data.generealization is set to 1,
 
 %% Semi-synthetic data realization parameters
 parameters.synthetic.functionTransform = 30; %if 'id';
-parameters.synthetic.NKLTerms = 54; % KL Truncation for generating Semisynthetic Data
+parameters.synthetic.NKLTerms = 89; % KL Truncation for generating Semisynthetic Data
 parameters.synthetic.Ars = [150, 450, 1500, 10000];
 parameters.synthetic.Brs = [100, 100, 100, 100];
 parameters.synthetic.NTest = 10000;
@@ -34,7 +35,8 @@ parameters.multilevel.svmonly = 2; % if 1 then SVM only, if 0 then multilevel, i
 parameters.multilevel.splitTraining = false; %if True, then Training A data is split into ML-filter subset and SVM training subset
 parameters.multilevel.eigentag = 'smallest'; %if 'largest', uses principal eigenspace, if 'smallest' uses terminal eigenspace
 parameters.multilevel.concentration = 1;
-parameters.multilevel.Mres = 'MLS';
+parameters.multilevel.Mres_manual = 1600:1600:16000;
+parameters.multilevel.Mres_auto = 'MLS';
 
 %% Baseline performance parameters
 parameters.misc.MachineList = ["SVM_Linear", "SVM_Radial", "LogitBoost", "RUSBoost", "Bag"];

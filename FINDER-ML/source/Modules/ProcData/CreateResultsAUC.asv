@@ -1,0 +1,12 @@
+function results = CreateResultsAUC(parameters)
+
+Npoints = 100;
+
+results.multilevel.X = NaN();
+results.multilevel.Y = [];
+results.multilevel.AUC = [];
+
+results.svm.X = [];
+results.svm.Y = [];
+results.svm.AUC = [];
+end

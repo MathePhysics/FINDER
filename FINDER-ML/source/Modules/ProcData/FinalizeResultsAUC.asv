@@ -1,0 +1,42 @@
+function results2 = FinalizeResultsAUC(Datas, parameters, methods, results)
+
+if parameters.multilevel.svmonly == 3
+    error('Multi2 is in place. Set parameters.multilevel.nested to 3')
+end
+
+results2.AUCSep = zeros(parameters.multilevel.l);
+results2.AUCClose = zeros(parameters.multilevel.l);
+
+BestAUC = Inf;
+
+for ima = 1:parameters.multilevel.l
+    for imres = 1:ima
+        for machine = {'Sep', 'Close'}
+
+        %Extract Actual
+        actual = squeeze(results(ima, imres).([machine 'MeansArray'])(:,:,:,1));
+        actual = actual(~isnan(actual));
+    
+        %Extract Predicted
+        predicted = squeeze(results(ima, imres).([machine 'MeansArray'])(:,:,:,1));
+        predicted = predicted(~isnan(predicted));
+    
+        % Compute AUC
+        [Xroc, Yroc, ~, AUC] = perfcurve(actual, predicted, 1);
+        results(ima, imres).AUC.(machine) = AUC;
+        
+        if AUC < BestAUC
+            BestROC = [Xroc, Yroc];
+            BestMA = ima;
+            BestMres = imres;
+        end
+
+
+    
+    end
+    end
+
+
+
+
+end

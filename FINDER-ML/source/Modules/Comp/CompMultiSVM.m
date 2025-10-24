@@ -82,6 +82,7 @@ methods = DefineMethods;
      
 
      parameters = methods.all.filefunc(parameters, methods);
+     Datas.rawdata.AData = []; Datas.rawdata.BData = [];
      save(fullfile(parameters.datafolder,parameters.dataname), 'parameters', 'results', 'Datas');
 
  end

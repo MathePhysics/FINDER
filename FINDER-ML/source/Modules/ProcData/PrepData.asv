@@ -1,0 +1,81 @@
+function [Datas, parameters] = PrepData(Datas, parameters)
+% deletes one data point for LOOCV
+
+%select_AData = Datas.rawdata.select_AData;
+%select_BData = Datas.rawdata.select_BData;
+
+% Old version
+i = parameters.data.i;
+j = parameters.data.j;
+
+ivector = 1:parameters.data.Kfold:parameters.data.A; %Ni = length(ivector);
+jvector = 1:parameters.data.Kfold:parameters.data.B; %Nj = length(jvector);
+
+istart = ivector(i); 
+
+%%
+if i < parameters.data.NAvals
+    iend = istart + parameters.data.Kfold;
+elseif i = parameters.data.NAvals
+    iend = parameters.data.A;
+end
+
+if j < parameters.data.NBvals
+    jend = jstart + parameters.data.Kfold;
+elseif j = parameters.data.NBvals
+    jend = parameters.data.B;
+end
+%%
+
+iTesting = istart:iend;
+jTesting = jstart:jend;
+
+TestingA = Datas.rawdata.AData(:,i);
+TestingB = Datas.rawdata.BData(:,j);
+
+TrainingA = Datas.rawdata.AData(:,:); 
+TrainingB = Datas.rawdata.BData(:,:);
+TrainingA(:,i) = []; 
+TrainingB(:,j) = []; 
+
+%Subtract the mean from Training Class A
+%meanXA = mean(TrainingA',1)';
+%meanXB = mean(TrainingB',1)';
+
+iData = 1:size(TrainingA,2);
+nTesting = size(TrainingB,2);
+iCov = iData(iData <= nTesting);
+meanXA = mean(TrainingA(:,iCov), 2);
+
+% meanXA = mean(TrainingA, 2);
+% meanXB = mean(TrainingB, 2);
+% 
+Datas.A.Testing = TestingA - meanXA;
+Datas.B.Testing = TestingB - meanXA;
+Datas.A.Training = TrainingA - meanXA;
+Datas.B.Training = TrainingB - meanXA ; %meanXB;
+
+%%
+% Compute eigendata if parameters.ComputeTransform is set to true;
+
+if parameters.transform.ComputeTransform
+Datas = UpdateCovariance(Datas, parameters);
+end
+
+% 
+%     maxA = max(SA); maxB = max(SB);
+%     [~,imax] = max([maxA, maxB]);
+%     [~,imin] = min([maxA, maxB]);
+%     classes = 'AB';
+% 
+%     parameters.data.innerClass = classes(imin);
+%     parameters.data.outerClass = classes(imax);
+% end
+
+%% Switch classes if A > B
+
+
+
+end
+
+

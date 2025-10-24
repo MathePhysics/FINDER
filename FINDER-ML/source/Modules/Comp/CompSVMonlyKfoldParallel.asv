@@ -1,0 +1,121 @@
+function [results] = CompSVMonlyKfoldParallel(methods, Datas, parameters, results)
+
+% Compute SVM classifier and validation with leave one out
+% Parallel Version
+
+% ivector = 1:parameters.data.Kfold:parameters.data.A; %Ni = length(ivector);
+% jvector = 1:parameters.data.Kfold:parameters.data.B; %Nj = length(jvector);
+% 
+% NAVals = ceil(parameters.data.A / parameters.data.Kfold);
+% NBVals = ceil(parameters.data.B / parameters.data.Kfold);
+
+% actual = nan(length(parameters.data.NAvals),...
+%                      length(parameters.data.NBvals),...
+%                      2*parameters.data.Kfold);
+% predicted = actual;
+
+array = methods.all.iniresults(parameters);
+
+ for j = parameters.data.NBvals
+%         jstart = jvector(j);
+%         jend = min(parameters.data.B, jstart + parameters.data.Kfold-1);
+        parameters.data.j = j; %jstart:jend;
+        
+        tic;
+        t1 = toc;
+        % Copy variables for each processor
+       
+      
+
+      parfor i = parameters.data.NAvals
+
+            parameters2 = parameters;
+            Datas2 = Datas; 
+
+%             istart = ivector(i);
+%             iend = min(parameters2.data.A, istart + parameters2.data.Kfold-1);
+            parameters2.data.i = i; %istart:iend;
+
+            %parameters2.data.i = ifold;
+           % parameters2.data.j = jfold;
+
+         
+            % Split data into two groups: training and testing 
+            [Datas3] = methods.all.prepdata(Datas2, parameters2);
+
+            %Transform Data
+            Datas4 = methods.transform.tree(Datas3, parameters, methods);
+                        
+            % Form X and Y  
+            [Datas5] = methods.SVMonly.Prep(Datas4);
+
+
+            % Fit SVM
+            if parameters2.svm.kernal == 1
+                parameters2.svm.SVMModel = methods.all.SVMmodel(Datas5.X_Train, Datas5.y_Train, ...
+                                                    'KernelFunction', 'RBF', 'KernelScale', 'auto');
+            else
+                parameters2.svm.SVMModel = methods.all.SVMmodel(Datas5.X_Train, Datas5.y_Train);
+            end
+     
+            % Predict SVM
+            %Datas6 = Datas5;
+            %m = length(Datas6.y_Train)
+            [array(i,j, 1), ...
+             actual(i,j, :)] = ...
+                methods.all.predict(Datas6, parameters2, methods);
+
+%             [Xroc, Yroc] = methods.all.predict(Datas5, parameters2, methods, results);
+%             Xrocs(i,j,:) = Xroc;
+%             Yrocs(i,j,:) = Yroc;
+
+%             y_test_A = methods.all.SVMpredict(parameters2.svm.SVMModel, Datas2.A.Testing');
+%             y_test_B = methods.all.SVMpredict(parameters2.svm.SVMModel, Datas2.B.Testing');
+% 
+% 
+%             correct_B =  correct_B + sum(y_Test_B == 0);   %correctly classified Class B 
+%             wrong_B = wrong_B + sum(y_Test_B == 1);   %incorrectly classified Class B    
+%             correct_A =  correct_A + sum(y_Test_A == 1);  %correctly classified Class A  
+%             wrong_A = wrong_A + sum(y_Test_A == 0); %incorrectly classified A
+% 
+% %             correct_B(j,i) =  CB;   %correctly classified Class B 
+% %             wrong_B(j,i) = WB;   %incorrectly classified Class B    
+% %             correct_A(j,i) =  CA;  %correctly classified Class A  
+% %             wrong_A(j,i) = WA; %incorrectly classified A
+
+
+
+
+%             if y_test_normal == 0
+%                 correct_B = correct_B + 1;
+%             elseif y_test_normal == 1
+%                 wrong_B = wrong_B + 1;
+%             end
+% 
+% 
+%            if y_test_A == 1
+%                correct_A = correct_A + 1;
+%            elseif y_test_A == 0
+%                wrong_A = wrong_A + 1;
+%            end
+        end
+
+end
+
+results.svm.mean.Xroc = squeeze(mean(Xrocs, [1 2]));
+results.svm.mean.Yroc = squeeze(mean(Yrocs, [1 2]));
+results.svm.upper95.Yroc = squeeze(quantile(Yrocs, 0.975, [1,2])) - results.svm.mean.Yroc;
+results.svm.lower95.Yroc = results.svm.mean.Yroc - squeeze(quantile(Yrocs, 0.025, [1,2]));
+results.svm.AUC = trapz(results.svm.mean.Xroc, results.svm.mean.Yroc);
+
+
+
+% results.correct_B = sum(correct_B(:));
+% results.wrong_B = sum(wrong_B(:));
+% results.correct_A = sum(correct_A(:));
+% results.wrong_A = sum(wrong_A(:));
+
+% results.svm.accuracy(parameters.data.currentiter, 1) = (correct_A + correct_B)/(correct_A + wrong_B + correct_B + wrong_A);
+% results.svm.precision(parameters.data.currentiter, 1) = correct_A/(correct_A + wrong_B);
+
+end

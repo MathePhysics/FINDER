@@ -1,0 +1,24 @@
+function Datas = UpdateCovariance(Datas, parameters)
+
+    %N = size(Datas.A.Training,2) - size(Datas.B.Training,2);
+    NA = size(Datas.A.Training,2); NB = size(Datas.B.Training,2);
+    ZMBT = Datas.B.Training - mean(Datas.B.Training, 2);
+
+    [UA, SA, ~] = svd((NA-1)^(-0.5) * Datas.A.Training, 'vector'); SA = SA.^2;
+    [UB, SB, ~] = svd((NB-1)^(-0.5) * ZMBT, 'vector'); SB = SB.^2;
+
+    Datas.A.covariance = 1/(NA-1) * Datas.A.Training * Datas.A.Training';
+    Datas.A.eigenvectors = UA;
+    Datas.A.eigenvalues = SA;
+ 
+    Datas.B.covariance = 1/(NB -1) * ZMBT * ZMBT';
+    Datas.B.eigenvectors = UB;
+    Datas.B.eigenvalues = SB;
+
+    RA = length(Datas.A.eigenvalues);
+    CA = Datas.A.eigenvectors(:,1:RA) * (Datas.A.eigenvalues(:) .* Datas.A.eigen(:,1:RA)') ;
+    RB = length(Datas.B.eigenvalues);
+    CB = UB(:,1:RB) * (SB(:) .* UB(:,1:RB)') ;
+    fprintf('A Covariance Check: %0.4e \n', norm(CA - Datas.A.covariance));
+    fprintf('B Covariance Check: %0.4e \n\n', norm(CB - Datas.B.covariance));
+end

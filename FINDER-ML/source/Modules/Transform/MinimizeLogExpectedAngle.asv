@@ -1,0 +1,117 @@
+function Datas = MinimizeLogExpectedAngle(Datas, parameters, methods)
+
+if ~parameters.transform.ComputeTransform, return, end
+
+RA = min(parameters.data.numofgene, parameters.data.A);
+H0 = speye(parameters.data.numofgene, RA);
+itercounter = 0;
+BestObj = Inf;
+obj0 = 1;
+stepdiff = Inf;
+keepIterating = true; 
+
+HSIP = @(X,H, A,B) (X'*A)' * (H'*B) ;
+HSIP2 = @(X,H, S, A, B) (X'*A) * S * (B'*H); 
+%HSIP3 = @(X,S,A) (X'*A) .* S(:) 
+HSN = @(H,A) sum( (H'*A).^2, 1);
+
+weights = [1 / (parameters.data.A * parameters.data.B)
+          1 / (parameters.data.A * parameters.data.B)
+          -1 / (parameters.data.A )
+           -1 / (parameters.data.B) ];
+
+while keepIterating
+%% Increment iteration
+itercounter = itercounter + 1;
+ 
+
+%% Estimate objective
+    %HA = H0' * Datas.A.CovTraining;
+    %HB = H0' * Datas.B.CovTraining; 
+
+    A{1} = HSIP(H0, H0, Datas.A.CovTraining, Datas.B.CovTraining);
+    A{2} = A{1}' ; 
+    A{3} = HSN(H0, Datas.A.CovTraining);
+    A{4} = HSN(H0, Datas.B.CovTraining);
+
+    objn = cellfun(@(x) mean(log(abs(x)), 'all'), A);
+    objn = objn(1) - 0.5*objn(2) - 0.5*objn(3) ; 
+    %objn = exp(objn);
+    stepdiff = abs((objn - obj0)/obj0);
+
+    if objn < BestObj
+        BestObj = objn;
+        BestH = H0;
+    end 
+    obj0 = objn;
+
+    
+
+    fprintf('Objective Value: %0.2e. ',objn);
+    fprintf('Best Objective: %0.2e. ', BestObj);
+    fprintf('Relative Change: %0.2f \n', stepdiff);
+    if mod(itercounter, 10) == 0, fprintf('Iteration: %d \n', itercounter), end
+
+%% Decide to continue
+    if objn < log(eps) || stepdiff < eps || itercounter > 100
+        break
+    end
+
+%% Estimate Gradient
+
+    S{1} = HSIP(H0, H0, Datas.A.CovTraining, Datas.B.CovTraining);
+    S{2} = S{1}' ; 
+    S{3} = HSN(H0, Datas.A.CovTraining);
+    S{4} = HSN(H0, Datas.B.CovTraining);
+
+    B(:,:,1) =  weights(1) * Datas.A.CovTraining * (1./S{1}) * (Datas.B.CovTraining' * H0) ; 
+    B(:,:,2) =  weights(2) * Datas.B.CovTraining * (1./S{2}) * (Datas.A.CovTraining' * H0) ;
+    B(:,:,3) =  weights(3) * (Datas.A.CovTraining .* (1./S{3})) * (Datas.A.CovTraining' * H0) ; 
+    B(:,:,4) =  weights(4) * (Datas.B.CovTraining .* (1./S{4})) * (Datas.B.CovTraining' * H0) ; 
+
+    grad = sum(B,3);
+  
+ %% Estimate Hessian 
+    
+    
+    C{1} = HSIP2(grad, grad, 1./S{1}, Datas.A.CovTraining, Datas.B.CovTraining) + ...
+           HSIP2(grad, grad, 1./S{2}, Datas.B.CovTraining, Datas.A.CovTraining)';
+    C{2} = diag(HSIP2(grad, grad, diag(1./S{3}), Datas.A.CovTraining, Datas.A.CovTraining).^2);
+    C{3} = diag(HSIP2(grad, grad, diag(1./S{4}), Datas.B.CovTraining, Datas.B.CovTraining).^2);
+
+    Hess1  = cellfun(@(C) mean((C), 'all'), C);
+    Hess1 = [2 -1 -1]*Hess1(:);
+
+    D{1} = HSIP2(grad, H0, 1./S{1}, Datas.A.CovTraining, Datas.B.CovTraining).^2 + ...
+           HSIP2(grad, H0, 1./S{2}, Datas.B.CovTraining, Datas.A.CovTraining).^2 ;
+    D{2} = diag(HSIP2(grad, H0, diag(1./S{3}), Datas.A.CovTraining, Datas.A.CovTraining).^2);
+    D{3} = diag(HSIP2(grad, H0, diag(1./S{4}), Datas.B.CovTraining, Datas.B.CovTraining).^2);
+
+    Hess2  = cellfun(@(C) mean((C), 'all'), C);
+    Hess2 = [-1 2 2]*Hess2(:);
+
+
+ %% Compute Learning Rate
+    % b = norm(grad,'fro')^2;
+    % a = Hess1 + Hess2;
+    % t = abs(b/a); 
+    t = norm(grad, 'fro') / itercounter;
+
+ %% Compute step 
+    H1 = H0 - t*grad;
+    H1 = H1 / norm(H1, 'fro'); 
+    H0 = H1;
+    %stepdiff = norm(H1 - H0, 'fro');
+end
+
+
+fprintf('\n ========== \n Best Objective: %0.2f \n =========== \n', BestObj)
+fprint('Condition Number; %0.3e', cond(BestH));
+
+[U,S,V] = svd(BestH, 'econ'); 
+
+for C = 'AB', for Set = ["CovTraining", "Testing", "Machine"]
+        Datas.(C).Set = BestH' * Datas.(C).(Set);
+end, end
+
+end

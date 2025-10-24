@@ -1,26 +1,12 @@
 function parameters = filefunc(parameters, methods)
 
-
-
-% if nargin == 1
-%     methods.transform.tree = str2func(parameters.transform.tag);
-% end
-
-% if ~parameters.transform.ComputeTransfor
-%     transform_tag = 'Untransformed';
-% elseif parameters.transform.ComputeTransform
-%     transform_tag = func2str(methods.transform.tree);
-%     transform_tag(transform_tag == '@') = [];
-%     transform_tag = sprintf('%s-dim-%d', transform_tag, parameters.transform.dimTransformedSpace);
-% end
-% parameters.transform.tag = transform_tag;
-% 
-%         
-% 
-% switch parameters.parallel.on
-%     case 1, par_tag = 'Par';
-%     case 0, par_tag = 'NoPar';
-% end
+%% Remove 'origA', 'origB', 'Training', 'Testing' fields from parameters (they're huge!)
+bigFields = {'origA', 'origB', 'Training', 'Testing'};
+for i = 1:length(bigFields)
+    if isfield(parameters, bigFields{i})
+    parameters = rmfield(parameters, bigFields{i});
+    end
+end
 
 %% Tag containing validation type 
 

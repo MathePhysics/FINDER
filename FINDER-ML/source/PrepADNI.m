@@ -1,6 +1,6 @@
 % Load QC dataset and filter for visit code 'm12'
-qc = readtable('/restricted/projectnb/sctad/ADNI/adni_plasma_proteins/adni_plasma_qc_multiplex_11Nov2010.csv');
-%qc = readtable('/yourfolder/adni_plasma_qc_multiplex_11Nov2010.csv');
+%qc = readtable('/restricted/projectnb/sctad/ADNI/adni_plasma_proteins/adni_plasma_qc_multiplex_11Nov2010.csv');
+qc = readtable(fullfile('..','data','adni_plasma_qc_multiplex_11Nov2010.csv'));
 qc_m12 = qc(strcmp(qc.Visit_Code, 'm12'), :);  % Keep only rows where Visit_Code is 'm12'
 
 qc_m12 = standardizeMissing(qc_m12, {'.','NaN'});  % Convert 'NaN' strings to real NaNs
@@ -12,8 +12,8 @@ qc_m12 = qc_m12(:, ~all(ismissing(qc_m12), 1));
 
 
 % Load phenotype data and filter for visit code 'm12'
-phenotype = readtable('/restricted/projectnb/sctad/ADNI/phenotype/adni_phenotype_m12.csv');
-%phenotype = readtable('/yourfolder/adni_phenotype_m12.csv');
+%phenotype = readtable('/restricted/projectnb/sctad/ADNI/phenotype/adni_phenotype_m12.csv');
+phenotype = readtable(fullfile('..','data','adni_phenotype_m12.csv'));
 phenotype_m12 = phenotype(strcmp(phenotype.VISCODE, 'm12'), :);  % Keep only rows where VISCODE is 'm12'
 
 % Merge 'DX.bl' from phenotype into qc based on 'RID'
@@ -54,7 +54,7 @@ generate_three_datasets(qc_m12_labelled);
 % -------- Function definition --------
 function generate_three_datasets(data)
     % Output directory
-    outdir = '../data/ADNI_data/';
+    outdir = fullfile('..','data');
     
     % Ensure directory exists
     if ~exist(outdir, 'dir')

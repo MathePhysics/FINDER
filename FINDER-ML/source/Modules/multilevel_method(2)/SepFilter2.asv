@@ -1,0 +1,9 @@
+function Datas = SepFilter2(Datas, parameters, methods)
+
+S = parameters.data.residualSubspace(:,1:parameters.multilevel.iMres);
+for i = 'AB', for set = ["Testing", "Machine"]
+        Datas.(i).(set).Backup = Data
+        Datas.(i).(set) = S' * Datas.(i).(set);       
+end, end
+
+end
